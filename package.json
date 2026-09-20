@@ -1,0 +1,13 @@
+{
+  "name": "repo-context-skill",
+  "version": "1.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "description": "repo-context 技能：只需 Node 即可运行；下面两个是可选的 AST 增强依赖（不装会自动落回行级抽取器）",
+  "optionalDependencies": {
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "^0.20.8"
+  }
+}
