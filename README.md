@@ -1,5 +1,21 @@
 # repo-context —— 本地仓库上下文索引器（纯 Node 便携包）
 
+> English: [README.en.md](README.en.md) ｜ 更新日志：[CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## 0. 三层分工（实测结论，大项目必读）
+
+实测对象：2.4 GB / 3464 文件 / Rust + TS + Python 项目。
+
+| 任务 | 工具 | 为什么 |
+|---|---|---|
+| 简单文本 / 正则定位 | **自带 Grep**（ripgrep） | 单次最快（~2s）；本工具不做文本搜索 |
+| **在哪实现 / `callers` / `impact` / `hubs` / `for` / 仓库笔记** | **本工具** | `index` 一次秒级（实测 3.1s / 367 文件 / 6104 符号 / 15945 边），之后每条查询 <0.3s；`callers` / `impact` / `hubs` / `for` 是 Grep 与 [aisearch](https://github.com/ForceDream/ai-search) 都没有的能力 |
+| 读函数体 / 行归属 / 大文件分页 | **[aisearch](https://github.com/ForceDream/ai-search)** | `read <file>#<sym>` / `context` 是 O(单文件) 操作，又快又省 token |
+
+**一句话**：本工具负责**定位与影响面分析**（有索引、瞬时返回），aisearch 负责**精读**，Grep 负责**纯文本**。索引是一次性成本，重复查询越多收益越大；改代码后重跑 `index`、提交前 `check` 即可。
+
 > 纯 Node（核心零依赖）· 离线 · 跨平台 ｜ 核心功能**零依赖、开箱即用**；可选 AST 增强（tree-sitter wasm，约 49.5MB）**不入库**，用 `npm install` 或安装脚本 `--with-deps` 获取，装与不装都不影响可用性
 
 ---
@@ -99,7 +115,7 @@ repo-context/
 ├─ SKILL.md                       ← 技能本体：动词表 / 抽取器 / 记忆体模型 / 诚实性约定 / 纪律
 ├─ package.json / package-lock.json
 ├─ docs/         pipeline · lsp-bridge-evaluation
-├─ scripts/      20 个 .mjs + repoctx.cmd（含 9 个测试文件，120 条）
+├─ scripts/      20 个 .mjs + repoctx.cmd（含 9 个测试文件，`npm test` 运行）
 └─ node_modules/ 可选（tree-sitter wasm，npm install 获取；不入库）
 ```
 
