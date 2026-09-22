@@ -1,7 +1,7 @@
 @echo off
-rem repoctx entry: resolve node, then forward args.
-rem Prefers node on PATH; falls back to common install locations so it also works
-rem where node is not on PATH.
+
+
+
 setlocal
 set "NODE=node"
 where node >nul 2>nul && goto :run

@@ -1,6 +1,6 @@
 # repo-context 样例（真实输出）
 
-`<SKILL_DIR>` = 本技能目录（即 `SKILL.md` 所在目录，CodeBuddy 中也可写作 `${CODEBUDDY_SKILL_DIR}`）。
+`<SKILL_DIR>` = 本技能目录（即 `SKILL.md` 所在目录），加载技能时系统会给出其绝对路径（Base directory）。
 
 语料：`assets/demo/`（3 个源文件、15 个符号）。把 `assets/demo` 复制到任意临时目录后，用该目录作 `--repo` 执行下面命令。以下输出为实测原样（Windows + Node 24，行级抽取器）。
 
