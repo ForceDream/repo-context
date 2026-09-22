@@ -1,13 +1,13 @@
-/**
- * `for` 的固定查询回归基线（2026-09-16 落地，第三十六轮提出）
- *
- * 动机：排序权重一旦调整就必须**可测**——不然就是"向轶事过拟合"（IDF 实验的教训：
- * 5 个查询的对照都不够，必须成体系）。这里固定 ≥10 条查询 + 人眼确认的期望符号，
- * 任何改动排序的提交都要过这一关。
- *
- * 断言语义：**期望符号出现在 top-N**（默认 5）——容忍次序波动，抓住真实退化。
- * 索引缺失时自动 skip（例如在安装的技能副本目录里跑测试）。
- */
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -21,7 +21,7 @@ const CLI = path.join(HERE, 'repoctx.mjs')
 const MAP = path.join(REPO, '.repoctx', 'map.json')
 const skip = fs.existsSync(MAP) ? false : `无索引：${path.relative(process.cwd(), MAP)} 不存在（先跑 repoctx index）`
 
-/** 期望值由人眼确认（2026-09-16 实测：全部落在当年 top-4 内） */
+
 const QUERIES = [
   ['auth token refresh', 'TokenRefresher'],
   ['mcp proxy tool', 'McpProxyTool'],

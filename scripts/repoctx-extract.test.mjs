@@ -1,17 +1,17 @@
-/**
- * 抽取器全量覆盖测试（2026-09-16）
- *
- * 动机：此前的测试只断言"名字被抽到了"——**没断言种类与字段**（`t`/`l`/`el`/`sig`/`q`/`tr`/`exp`/`cx`/`refs`/`qrefs`），
- * 也没覆盖**每一类声明**（struct/enum/trait/type alias/interface/impl/static/macro/抽象类/枚举…）。
- * 本文件按抽取器的 DECLS 表逐语言枚举：断言每一类的 kind 映射与关键字段；
- * 再对**真实产物**做覆盖断言（每种 kind 都在、每种 edge prov 都在、字段健全）。
- *
- * 三条**实测得出**的行为约定（写测试时踩过，固化成护栏）：
- *   1. **名字长度 < 2 的声明被跳过**（`name.length < 2` 噪声过滤）——所以用例里不能用 `C`/`I`/`m` 这类单字符名；
- *   2. `struct Point` 与 `impl Point` **同名**（impl 的名字取自类型）——按名建 Map 会被覆盖，必须用数组；
- *   3. 语法错误由 tree-sitter 自行恢复：TS 里 ERROR 可能吞掉**后续**声明（Rust 里两个都能抽到）——
- *      容错要求是"不抛异常 + 能抽到多少抽多少"，不是"全都能抽到"。
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -30,7 +30,7 @@ const list = (src, lang, file) => ex.extract(file, lang, src) || []
 const byName = (src, lang, file) => new Map(list(src, lang, file).map((s) => [s.name, s]))
 const kinds = (src, lang, file) => { const m = {}; for (const s of list(src, lang, file)) m[s.name] = s.kind; return m }
 
-// ── Rust：DECLS 全部 11 类 ────────────────────────────────────────────────────
+
 
 const RUST_ALL = [
   'pub fn top_fn(a: u32) -> u32 { if a > 0 { a } else { 0 } }',
@@ -68,7 +68,7 @@ test('Rust：DECLS 每一类都抽出，且 kind 映射正确', { skip }, () => 
   assert.equal(k.name, 'fn', 'trait 默认实现（有体）也是符号')
   assert.equal(k.nested, 'fn')
   assert.equal(k.new_at, 'fn')
-  // struct 与 impl 同名：必须用数组断言，Map 会被后者覆盖
+
   assert.equal(all.filter((s) => s.name === 'Point' && s.kind === 'struct').length, 1)
   assert.equal(all.filter((s) => s.name === 'Point' && s.kind === 'impl').length, 2)
   assert.equal(k.One, 'struct', 'unit struct 也是符号')
@@ -91,7 +91,7 @@ test('Rust：q（容器链）——顶层无 q、嵌套/成员有链、同名声
   assert.equal(b.get('inner').q, undefined, '顶层 mod 自身无链')
   assert.equal(b.get('nested').q, 'inner::nested')
   assert.equal(b.get('new_at').q, 'Point::new_at')
-  // `area` 在两处声明（trait 签名 + impl 实现）——同名不同链，必须用数组断言
+
   const areaQs = list(RUST_ALL, 'rust', 'all.rs').filter((s) => s.name === 'area').map((s) => s.q).sort()
   assert.deepEqual(areaQs, ['Point::area', 'Shape::area'])
 })
@@ -123,7 +123,7 @@ test('Rust：qrefs 收集 scoped 调用（UFCS 消解数据源）', { skip }, ()
   assert.equal(qr[0].path, 'Holder')
 })
 
-// ── TypeScript：DECLS 全部 10 类 ─────────────────────────────────────────────
+
 
 const TS_ALL = [
   'export function topFn(a: number) { if (a) { return 1 } return 0 }',
@@ -180,7 +180,7 @@ test('JS：只抽 js DECLS（interface/type/enum 不抽）', { skip }, () => {
   assert.equal(k.ClsOne, 'class')
   assert.equal(k.valOne, 'var')
   assert.equal(k.methodOne, 'method')
-  // TS-only 构造在 .js 里是语法错误 → 不应产出符号（能抽到多少抽多少，不抛异常）
+
   const bad = ['export function okFn() {}', 'export interface IfaceOne { a: number }', 'export type TAlias = string', 'export enum EEnum { A }'].join('\n')
   const kb = kinds(bad, 'js', 'bad.js')
   assert.equal(kb.okFn, 'fn', '语法错误前的声明仍应抽到')
@@ -203,7 +203,7 @@ test('TSX：走 ts 的 DECLS（interface/type 在 tsx 里也能抽）', { skip }
   assert.equal(k.CardKind, 'type')
 })
 
-// ── 第四十九轮补齐：字段/变体/成员/泛型参数 + 类型引用 + 导入绑定 ──────────────
+
 
 test('Rust：字段 / 枚举变体 / 泛型参数都抽出（声明层补齐）', { skip }, () => {
   const src = [
@@ -274,7 +274,7 @@ test('导入绑定（AST 版）：别名 + 无别名导入的原始名清单（�
   assert.ok(!imp2.names.includes('std'), 'std 等根段不算导入名')
 })
 
-// ── 特殊行为：单字符名、语法错误容错 ─────────────────────────────────────────
+
 
 test('单字符名被跳过（< 2 字符噪声过滤）', { skip }, () => {
   const src = ['export function f() {}', 'export interface I { a: number }', 'const v = 1'].join('\n')
@@ -283,29 +283,29 @@ test('单字符名被跳过（< 2 字符噪声过滤）', { skip }, () => {
 })
 
 test('解构声明与多 declarator 的行为（实测约定，非缺口）', { skip }, () => {
-  // 解构：`const { a, b } = obj` 不产符号——这些名字本就是**函数内局部名**（FIELD_DECL_NODES 已把它们
-  // 从 refs 里排除），不进枢纽、不产生跨文件边是正确的。
-  // 仓库实测（2026-09-16）：解构声明 228 处，其中**顶层 0 处** → 不产符号无实际损失。
+
+
+
   assert.deepEqual(list('const { alphaProp, betaProp } = objThing', 'ts', 'd1.ts').map((s) => s.name), [])
   assert.deepEqual(list('const [firstItem, secondItem] = arrThing', 'ts', 'd2.ts').map((s) => s.name), [])
-  // 多 declarator：只产首个（nameOf 取第一个 declarator）——已知小缺口，仓库实测仅 6 处此类行且多为函数内
+
   assert.deepEqual(list('const alphaOne = 1, betaTwo = 2', 'ts', 'd3.ts').map((s) => s.name), ['alphaOne'])
 })
 
 test('语法错误容错：不抛异常，能抽到多少抽多少', { skip }, () => {
-  // TS：ERROR 会吞掉后续声明（tree-sitter 的恢复行为，不是我们的 bug）
+
   const tsSrc = ['export function goodOne() {}', 'export const broken = )(', 'export function maybeTwo() {}'].join('\n')
   let tsOut
   assert.doesNotThrow(() => { tsOut = list(tsSrc, 'ts', 'bad.ts') })
   assert.ok(tsOut.some((s) => s.name === 'goodOne'), '错误之前的声明必须抽到')
-  // Rust：同样的错误之后，两个函数都能抽到
+
   const rsSrc = ['fn good_one() {}', '@@@', 'fn good_two() {}'].join('\n')
   let rsOut
   assert.doesNotThrow(() => { rsOut = list(rsSrc, 'rust', 'bad.rs') })
   assert.ok(rsOut.filter((s) => s.kind === 'fn').length >= 1, '至少抽到错误之前的函数')
 })
 
-// ── 字段级不变量（所有语言）────────────────────────────────────────────────
+
 
 test('字段不变量：l/el/sig/kind/exp/refs/cx 逐符号健全', { skip }, () => {
   const KNOWN = new Set(['fn', 'method', 'class', 'iface', 'struct', 'enum', 'trait', 'type', 'mod', 'var', 'const', 'macro', 'impl', 'field', 'variant', 'prop'])
@@ -325,7 +325,7 @@ test('字段不变量：l/el/sig/kind/exp/refs/cx 逐符号健全', { skip }, ()
   }
 })
 
-// ── 真实产物：种类覆盖 + 边类型（prov）覆盖 + 字段健全 ──────────────────────
+
 
 const CANDIDATES = [process.env.REPOCTX_TEST_REPO, path.resolve(HERE, '..', '..', '..')].filter(Boolean)
 const MAP_FILE = CANDIDATES.map((r) => path.join(r, '.repoctx', 'map.json')).find((p) => fs.existsSync(p))
@@ -334,7 +334,7 @@ const map = MAP_FILE ? JSON.parse(fs.readFileSync(MAP_FILE, 'utf8')) : null
 
 test('产物：每种 kind 都在本仓库出现过（抽取覆盖无死角）', { skip: mapSkip }, () => {
   const present = new Set(map.symbols.map((s) => s.t))
-  // 注：macro 不在列表里——本仓库**没有 macro_rules!**（实测 0 处），故不要求它出现
+
   for (const k of ['fn', 'struct', 'enum', 'trait', 'type', 'impl', 'mod', 'const', 'class', 'iface', 'method', 'var', 'sec']) {
     assert.ok(present.has(k), `本仓库应出现过 kind=${k}（实际：${[...present].sort().join(',')}）`)
   }
@@ -351,8 +351,8 @@ test('产物：字段健全（q 必含 ::、tr 为简单名、local 仅局部类
   for (const s of map.symbols) {
     if (s.q !== undefined) assert.ok(s.q.includes('::'), `q 非空时必须含容器链分隔符：${s.n}=${s.q}`)
     if (s.tr !== undefined) assert.match(s.tr, /^[A-Za-z_$][\w$]*$/, `tr 必须是简单名：${s.tr}`)
-    // local = 函数体内 var/const **或**抽取器标注的容器内局部名（泛型参数/关联类型绑定，kind=type）
-    // ——第四十九轮扩展：type_parameter 等抽出即局部（`T`/`U` 撞名必然一大堆，不能进枢纽）
+
+
     if (s.local === true) {
       assert.ok(s.t === 'var' || s.t === 'const' || s.t === 'type', `local 只能标在 var/const/type(泛型参数) 上：${s.n}=${s.t}`)
     }

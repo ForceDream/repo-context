@@ -1,13 +1,13 @@
-/**
- * repoctx-hub 单测（node --test，零依赖）
- *
- * 设计原则：**每个打分因子一条断言**，且用"同结构对照"的方式断言**比值**而不是绝对值——
- * 绝对值会随调参变化，比值才是规则的语义。尤其对下面两类"容易写错语义"的规则单独设卡：
- *   1. **降权 ≠ 删除**：泛用名必须仍在候选里（callers 仍统计），只是分数被压；
- *   2. **排除 ≠ 降权**：局部变量 / 第三方路径必须 **score() 返回 null**（根本不进候选）。
- *
- * 运行：node --test scripts/repoctx-hub.test.mjs   （或 npm test）
- */
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -18,13 +18,13 @@ import {
   loadHubConfig, isVendorPath, isTestPath, stripNoise, createHubModel, hubNormTable,
 } from './repoctx-hub.mjs'
 
-/** 造一个符号：只填枢纽打分真正读到的字段 */
+
 const sym = (n, o = {}) => ({
   n,
   t: o.t || 'fn',
   p: o.p || 'src/app.rs',
   l: o.l ?? 10,
-  el: o.el ?? (o.l ?? 10) + 4, // span = 5 → sw=1（要测单行就显式传 el === l）
+  el: o.el ?? (o.l ?? 10) + 4,
   local: o.local || false,
   cx: 1,
 })
@@ -32,7 +32,7 @@ const sym = (n, o = {}) => ({
 const model = (symbols, edges, hub = {}) =>
   createHubModel({ symbols, edges, config: { ...DEFAULT_CONFIG, ...hub } })
 
-// ── 弱引用过滤 ────────────────────────────────────────────────────────────
+
 
 test('stripNoise：剥注释与字符串，但不误伤 URL 与代码本体', () => {
   assert.ok(!stripNoise('let a = 1 // push\nlet b = 2', 'js').includes('push'), '行注释')
@@ -45,7 +45,7 @@ test('stripNoise：剥注释与字符串，但不误伤 URL 与代码本体', ()
   assert.ok(stripNoise('let a = push(x)', 'js').includes('push'), '代码本体不受影响')
 })
 
-// ── 路径分级 ──────────────────────────────────────────────────────────────
+
 
 test('路径分级：第三方路径与测试路径的判定（含反例）', () => {
   for (const p of ['node_modules/x/index.js', 'src/vendor/a.rs', 'third_party/z.cpp', '.cargo/registry/src/lib.rs', 'lib/site-packages/m.py']) {
@@ -61,7 +61,7 @@ test('路径分级：第三方路径与测试路径的判定（含反例）', ()
   assert.equal(isTestPath('src/agent/state.rs'), false)
 })
 
-// ── 配置 ──────────────────────────────────────────────────────────────────
+
 
 test('loadHubConfig：缺失用默认、坏 JSON 必须报错而不是静默', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'repoctx-hub-'))
@@ -86,7 +86,7 @@ test('loadHubConfig：缺失用默认、坏 JSON 必须报错而不是静默', (
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
-// ── 排除类（必须是 null，不是降权）────────────────────────────────────────
+
 
 test('局部变量不进候选：score() 返回 null，且不出现在 ranking 里', () => {
   const withLocal = model(
@@ -96,7 +96,7 @@ test('局部变量不进候选：score() 返回 null，且不出现在 ranking �
   assert.equal(withLocal.score(1), null)
   assert.equal(withLocal.ranking().some((r) => r.i === 1), false)
 
-  // 对照：同样结构但非局部 → 进候选（证明 null 的原因是 local，不是别处）
+
   const notLocal = model(
     [sym('helper', { p: 'src/a.rs' }), sym('tmp', { p: 'src/a.rs', t: 'var' })],
     [{ from: 0, to: 1, prov: 'name' }],
@@ -122,7 +122,7 @@ test('文档段落不做枢纽；无入度的符号不进候选', () => {
   assert.deepEqual(lonely.ranking(), [])
 })
 
-// ── 泛用名：降权，不是删除 ────────────────────────────────────────────────
+
 
 test('泛用名降权：系数精确生效，但**不删除**（callers 仍统计）', () => {
   const one = (name) => model(
@@ -159,7 +159,7 @@ test('泛用名表覆盖用户给定清单（回归护栏）', () => {
   }
 })
 
-// ── 归一化入度 ────────────────────────────────────────────────────────────
+
 
 test('归一化入度：同名定义越多，得分越被压（用户要点）', () => {
   const unique = model(
@@ -178,7 +178,7 @@ test('归一化入度：同名定义越多，得分越被压（用户要点）',
   assert.ok(Math.abs(dup.score / unique.score - 0.5) < 1e-12, '同入度下，2 处同名定义恰好压一半')
 })
 
-// ── 各因子 ────────────────────────────────────────────────────────────────
+
 
 test('同文件引用 ×0.7；测试路径引用 ×testDamp（可叠加）', () => {
   const sameFile = model([sym('f', { p: 'src/a.rs' }), sym('c', { p: 'src/a.rs' })], [{ from: 1, to: 0, prov: 'same-file' }]).score(0)
@@ -207,7 +207,7 @@ test('类型权重：成员类符号（field/prop/variant）显式 0 —— 不�
   for (const k of ['field', 'prop', 'variant']) {
     assert.equal(KIND_WEIGHT[k], 0, `${k} 的权重必须显式 0（第四十九轮补入的成员类符号不是枢纽候选）`)
   }
-  // 即便人为给它们造入度，得分也是 0（不会因将来某个新边族混进枢纽榜）
+
   const s = model(
     [sym('retries', { p: 'src/a.rs', t: 'field' }), sym('caller', { p: 'src/b.rs' })],
     [{ from: 1, to: 0, prov: 'name' }],
@@ -241,7 +241,7 @@ test('跨文件广度：引用方跨文件越多权重越高', () => {
   assert.ok(build(3).score > build(2).score && build(2).score > build(1).score)
 })
 
-// ── 排序与聚合 ────────────────────────────────────────────────────────────
+
 
 test('排序确定性：两次 ranking 结果完全一致，同分按名字稳定排序', () => {
   const symbols = [sym('bbb', { p: 'src/a.rs' }), sym('aaa', { p: 'src/a.rs' }), sym('ccc', { p: 'src/z.rs' }), sym('caller', { p: 'src/c.rs' })]
@@ -255,8 +255,8 @@ test('排序确定性：两次 ranking 结果完全一致，同分按名字稳�
 test('collapse：同名只留最高分一条，并标注同名定义数', () => {
   const symbols = [sym('dup', { p: 'src/a.rs' }), sym('dup', { p: 'src/b.rs' }), sym('c1', { p: 'src/c.rs' }), sym('c2', { p: 'src/d.rs' })]
   const edges = [
-    { from: 2, to: 0, prov: 'name' }, { from: 3, to: 0, prov: 'name' }, // 0 号两处引用
-    { from: 2, to: 1, prov: 'name' }, // 1 号一处引用
+    { from: 2, to: 0, prov: 'name' }, { from: 3, to: 0, prov: 'name' },
+    { from: 2, to: 1, prov: 'name' },
   ]
   const m = model(symbols, edges)
   const collapsed = m.collapse(m.ranking())
@@ -284,9 +284,9 @@ test('ambGroups：同名聚组、按被引用热度排序、标出全 vendor 组
 })
 
 test('ambGroups：组名撞上 Object.prototype 的键（constructor 等）不得读出原型属性', () => {
-  // 回归护栏（2026-09-15 实测踩过）：仓库里真有叫 constructor 的符号，
-  // 裸读 ambRefs['constructor'] 会拿到 Object.prototype.constructor（一个函数），
-  // 排序与输出全部被污染。产物经 JSON 往返后是带原型的普通对象，读侧必须 hasOwn。
+
+
+
   const symbols = [sym('constructor', { p: 'a.tsx', t: 'method' }), sym('constructor', { p: 'b.tsx', t: 'method' })]
   const m = model(symbols, [])
   const g = m.ambGroups({}).find((x) => x.name === 'constructor')
@@ -302,7 +302,7 @@ test('sameNameCount：同名定义计数与缺失名的回落', () => {
   assert.equal(m.sameNameCount('nope'), 0)
 })
 
-// ── 归一化表（for 的排序用）───────────────────────────────────────────────
+
 
 test('hubNormTable：log 归一 —— 最高为 1、非枢纽为 0、严格单调', () => {
   const rows = [{ i: 0, score: 288 }, { i: 1, score: 10 }, { i: 2, score: 1 }, { i: 3, score: 0 }]
@@ -312,7 +312,7 @@ test('hubNormTable：log 归一 —— 最高为 1、非枢纽为 0、严格单�
   assert.equal(norm[3], 0, '分数 0 → 0')
   assert.equal(norm[4], 0, '不在榜里的符号也是 0')
   assert.ok(norm[0] > norm[1] && norm[1] > norm[2] && norm[2] > norm[3], '严格单调')
-  // log 归一的关键性质：**尾部不被压成 0**（同样数据线性归一只有 10/288 = 0.035）
+
   assert.ok(norm[1] > 0.3, `hub=10/288 应拿到有意义权重，实得 ${norm[1].toFixed(3)}`)
   assert.ok(norm[2] > 0.1, `hub=1/288 也不该被压没，实得 ${norm[2].toFixed(3)}`)
 })

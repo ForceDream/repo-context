@@ -1,16 +1,16 @@
-/**
- * repoctx-ast 单测：**限定名（容器链）** 与 **import 行不入选**（node:test，零额外依赖）
- *
- * AST 是**可选增强**：`node_modules/tree-sitter-wasms` 不存在时整组跳过（并打印原因），
- * 不让"装了 Node 就能跑测试"这条底线被破坏。
- *
- * 两个测试点各自的由来：
- *   1. 限定名：`amb` 里 4 个 `run` 原本看不出谁是谁，现在能显示 `SkillCatalog::is_empty` 这种
- *      容器链 —— **仅用于展示消歧，不参与打分**；
- *   2. import 不入选：这是一条**实测结论的回归护栏**（2026-09-15）——`import`/`use` 语句位于
- *      任何被抽取符号体之外，所以它们的标识符**从未进入边集**，"import 去权（WEAK 引用）"
- *      在我们的架构里无事可做。若将来有人把 import 拉进 refs，这条会红。
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -26,7 +26,7 @@ const ex = fs.existsSync(WASM)
   : { available: false, reason: `未安装 AST 增强（${WASM} 不存在）` }
 const skip = ex.available ? false : `AST 不可用：${ex.reason}`
 
-/** 取某个符号的限定名（合成样本里名字唯一） */
+
 const qOf = (src, lang, file, name) => ex.extract(file, lang, src)?.find((s) => s.name === name)?.q
 
 test('Rust：嵌套 mod + impl 方法得到 容器链::方法；自由函数不产出 q', { skip }, () => {

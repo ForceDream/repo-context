@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 一键安装 repo-context（Linux / macOS）：把技能拷进用户级技能目录；可选安装 AST 增强依赖。
-#
-# 用法：
-#   bash install.sh
-#   bash install.sh --with-deps                 # 本包不含 node_modules 时执行 npm install（AST 增强）
-#   bash install.sh --target="$HOME/.agent-skills/repo-context"
-#
-# 说明：核心（行级抽取）零依赖，只要 Node；本包若已带 node_modules 会直接复制 → 离线可用。
+
+
+
+
+
+
+
+
 
 set -euo pipefail
 

@@ -10,7 +10,7 @@
     · 核心（行级抽取）零依赖，只要 Node 即可运行；
     · 本包若已带 node_modules（tree-sitter wasm），会直接复制 → 离线可用；
     · 不带 node_modules 且不加 -WithDeps 时，自动使用行级抽取（功能完整、精度略低）。
-#>
+
 [CmdletBinding()]
 param(
     [string]$Target = "$env:USERPROFILE\.agent-skills\repo-context",

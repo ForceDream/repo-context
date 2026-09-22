@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-/**
- * 安装 git hooks（2026-09-16）：把 PR 复核入口挂进本地流程。
- *
- * 装的是 `pre-push`：推送前打印"改动波及面"（seeds + 受影响符号），让作者在推之前就看到影响面。
- * 产物写到 `.git/repoctx-affected.md`（**不脏工作区**）。
- *
- * 用法：
- *   node tools/repo-context/scripts/install-hooks.mjs              # 安装/更新
- *   node tools/repo-context/scripts/install-hooks.mjs --uninstall  # 移除托管块
- *   node tools/repo-context/scripts/install-hooks.mjs --repo DIR   # 指定仓库根
- *
- * 设计：
- *   · **只动托管块**（`# >>> repo-context >>>` … `# <<< repo-context <<<`），已有 hook 的其余内容原样保留；
- *   · 幂等（重复安装只是替换托管块）；
- *   · **不做门禁**——hook 末尾 `exit 0`，永不阻断推送；
- *   · node 用 install 时解析到的绝对路径兜底（本机 node 不在 PATH 上，实测踩过）。
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -50,15 +50,15 @@ let body = out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 
 if (uninstall) {
   const cleaned = body ? body + '\n' : ''
-  // 判定"是否还有别的内容"时必须**忽略 shebang**：安装时若原本没有 hook，`#!/bin/sh` 是**我们自己注入的**；
-  // 若把它当内容，则 install → uninstall 会留下一个光秃秃的 `#!/bin/sh`（实测踩过，测试抓出）。
+
+
   const meaningful = cleaned.replace(/^#!.*\n?/, '').trim()
   if (!meaningful) { fs.rmSync(hookFile, { force: true }); console.log('✓ 已移除 pre-push（无其它内容）') }
   else { fs.writeFileSync(hookFile, cleaned, 'utf8'); console.log('✓ 已移除托管块（保留了 hook 的其余内容）') }
   process.exit(0)
 }
 
-const nodeFallback = process.execPath.replace(/\\/g, '/') // sh 里 `[ -x ]` 需要 POSIX 风格路径（反斜杠测不过，实测）
+const nodeFallback = process.execPath.replace(/\\/g, '/')
 const relScript = path.relative(root, path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), 'pr-affected.mjs')).split(path.sep).join('/')
 const block = [
   BEGIN,
@@ -76,7 +76,7 @@ const block = [
 if (!body) body = '#!/bin/sh'
 if (!body.startsWith('#!')) body = '#!/bin/sh\n' + body
 fs.writeFileSync(hookFile, body.trimEnd() + '\n\n' + block + '\n', 'utf8')
-try { fs.chmodSync(hookFile, 0o755) } catch { /* Windows 无 chmod */ }
+try { fs.chmodSync(hookFile, 0o755) } catch {  }
 console.log(`✓ 已安装 pre-push（${path.relative(process.cwd(), hookFile)}）`)
 console.log(`  node 兜底路径：${nodeFallback}`)
 console.log(`  复核脚本：${relScript}`)

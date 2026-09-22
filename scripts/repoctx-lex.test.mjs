@@ -1,15 +1,15 @@
-/**
- * 字符级健壮性单测（2026-09-16）
- *
- * 动机：此前测试只覆盖"结构"（限定名、import 不入选），**没覆盖那些会把解析器带偏的字符**——
- * 括号 / 引号 / 转义 / 未闭合串 / 正则字面量 / Rust 生命周期 / 原始字符串。
- * 真实教训：探针脚本少一对花括号导致分桶统计静默错（自校验才抓出来）；
- * 同类"细枝末节"在解析层同样会静默出错。
- *
- * 两层都测：
- *   · AST 模式（tree-sitter）：字符串/注释里的内容**不能**变成符号或引用；
- *   · 行级模式（stripNoise 正则剥离）：原始字符串 / 生命周期 / 正则字面量里的引号都不能吞掉真实代码。
- */
+
+
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -29,7 +29,7 @@ const syms = (src, lang, file) => ex.extract(file, lang, src) || []
 const namesOf = (src, lang, file) => syms(src, lang, file).map((s) => s.name)
 const refsOf = (src, lang, file, name) => (syms(src, lang, file).find((s) => s.name === name) || {}).refs || []
 
-// ── AST 模式：Rust 的括号/引号/生命周期/原始字符串 ───────────────────────────
+
 
 const RUST_TRICKY = [
   '// 注释：{ } " \' ` 括号引号全都未闭合',
@@ -71,7 +71,7 @@ test('Rust：容器链在带生命周期时依然正确；圈复杂度不被字�
   assert.equal(real.cx, 1, '字符串里的 `if` 不是决策点 → cx 必须是 1')
 })
 
-// ── AST 模式：TS/TSX 的模板串/转义/正则字面量/JSX ────────────────────────────
+
 
 const TS_TRICKY = [
   '// 注释 { } " \' `',
@@ -103,7 +103,7 @@ test('TSX：JSX 属性里的引号/花括号不影响抽取', { skip }, () => {
   assert.ok(ns.every((n) => /^[A-Za-z_$][\w$]*$/.test(n)), '不得抽出带引号/括号的怪名字：' + ns.join(','))
 })
 
-// ── 行级模式：stripNoise 的字符级剥离 ────────────────────────────────────────
+
 
 test('stripNoise：双引号/单引号/模板串/行注释/块注释内容被剥离，代码保留', () => {
   const src = [
@@ -135,12 +135,12 @@ test('stripNoise：Rust 生命周期 `\'a` 不能被当成字符字面量吃掉�
   assert.ok(!out.includes("''"), `不应产生 '' 伪影（吞掉中间代码）：${out}`)
   assert.ok(out.includes('needle'), '参数名不能被吃掉')
   assert.ok(out.includes('&'), '类型标注不能被吃掉')
-  // 字符字面量仍要被剥离（Rust 单引号只可能是字符）
+
   assert.ok(!stripNoise("let c = '{';", 'rust').includes('{'), '字符字面量 `\'{\'` 应被剥离')
 })
 
 test('stripNoise：JS 正则字面量里的引号不吞掉后续真实代码', () => {
-  // 单行是关键：正则与后续代码同行时，正则里的引号才会"配对"到后面的字符串
+
   const src = 'const re = /[\"\']/g; const s = real_call(); const t = "x"'
   const out = stripNoise(src, 'ts')
   assert.ok(out.includes('real_call'), `正则里的引号不能开始一个"字符串"把后面吞掉：${out}`)

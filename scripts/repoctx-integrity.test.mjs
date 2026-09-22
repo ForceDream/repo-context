@@ -1,14 +1,14 @@
-/**
- * 产物自一致性测试（2026-09-16）
- *
- * 动机：这类"内部账不平"的错误会**静默**产出错误结论——本轮就发生过一次
- * （探针脚本少一对花括号 → 分桶合计 10511 ≠ 总数 5500，靠"打印桶合计 vs 总数"才抓出来）。
- * 这里把同类自校验固化到工具产物上：边数/歧义数/引用数必须互相吻合，索引必须指向合法符号。
- *
- * 覆盖对象：
- *   · REPOCTX_TEST_REPO（若设了环境变量）或测试文件所在仓库（tools/repo-context/scripts → 上溯三级）；
- *   · 两个对象都没有 map.json 时自动 skip。
- */
+
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -23,7 +23,7 @@ const map = MAP_FILE ? JSON.parse(fs.readFileSync(MAP_FILE, 'utf8')) : null
 
 const KNOWN_PROV = new Set(['name', 'same-file', 'doc', 'scope-unique', 'lexical', 'visibility', 'alias', 'qname', 'dispatch', 'propagated'])
 const KNOWN_KINDS = new Set(['fn', 'method', 'class', 'iface', 'struct', 'enum', 'trait', 'type', 'mod', 'var', 'const', 'macro', 'impl', 'field', 'variant', 'prop', 'sec'])
-/** 成员类符号：是符号，但**不得成为调用图的边目标**（见 repoctx.mjs MEMBER_KINDS 注释） */
+
 const MEMBER_KINDS = new Set(['field', 'prop', 'variant'])
 
 test('计数自洽：sum(ambRefs) === stats.ambiguous', { skip }, () => {
@@ -79,9 +79,9 @@ test('每个符号的路径必须在 files 清单里；files 计数一致', { sk
 })
 
 test('调用图纯度：成员类符号（field/prop/variant）不得成为调用边目标', { skip }, () => {
-  // 这条守的是"调用图"的语义边界：字段/接口属性/枚举变体不是可调用目标，
-  // 且它们的名字（data/id/name/error…）在仓库里成百上千处重名——放任进来会让未连歧义从 2.1k 涨到 10.4k
-  // （实测）。它们仍是符号（symbol/typerefs/imports 能查），只是不参与调用解析。
+
+
+
   const bad = map.edges.filter((e) => MEMBER_KINDS.has(map.symbols[e.to].t))
   assert.deepEqual(bad.slice(0, 5).map((e) => `${map.symbols[e.from].n} → ${map.symbols[e.to].n}(${map.symbols[e.to].t})`), [],
     `调用边不得指向成员类符号（共 ${bad.length} 条）`)

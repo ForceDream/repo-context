@@ -1,11 +1,11 @@
-/**
- * 声明层测试（2026-09-16）：登记表自检 / 筛子 / 分类 / 普查端到端
- *
- * 这一层的价值全在"**漏掉的形态会自己冒出来**"，所以测试的重点不是"某个函数返回什么"，
- * 而是：① 登记表不许漂移（extracted ⟺ 抽取器实际用的表）；② 筛子既不能漏（`type_annotation`
- * 必须命中）也不能脏（`property_identifier` 必须不命中——首跑时它 12.8 万次霸榜，把真缺口挤下去）；
- * ③ 真出现未登记形态时，普查**必须报出来**（这是整层的存在理由，也是"缺了能补"的入口）。
- */
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -37,13 +37,13 @@ test('登记表：LANG_DECLS 的每一类都在登记表里，且 kind 落在 KI
 })
 
 test('筛子：声明样形态命中（含首跑发现的缺口），非声明节点不命中', () => {
-  // 必须命中——这些正是"待补/新发现"的两类：类型层与字段层
+
   for (const t of ['type_annotation', 'opting_type_annotation', 'type_predicate_annotation', 'type_identifier',
     'public_field_definition', 'field_declaration', 'enum_variant', 'property_signature',
     'variable_declarator', 'required_parameter', 'constrained_type_parameter', 'import_specifier', 'import_clause']) {
     assert.ok(isDeclLike(t), `${t} 应当被判为声明样`)
   }
-  // 必须不命中——首跑时这些噪声占了榜首（12.8 万次 property_identifier），一次筛子收紧才清净
+
   for (const t of ['property_identifier', 'member_expression', 'else_clause', 'catch_clause',
     'identifier', 'block', 'call_expression', 'type_arguments', 'regex_pattern', 'string']) {
     assert.ok(!isDeclLike(t), `${t} 不应被判为声明样（会淹没真缺口）`)
@@ -51,14 +51,14 @@ test('筛子：声明样形态命中（含首跑发现的缺口），非声明�
 })
 
 test('分类：五类分桶正确、按量级排序、非声明样节点被忽略', () => {
-  // 注意用**同一语言的**节点（type_annotation 是 TS 形态，在 rust 登记表里不存在——
-  // 首版测试就踩了这个：拿 rust 去分类 TS 形态，结果全部落进 unclassified）
+
+
   const counts = new Map([
-    ['function_declaration', 10],  // ts extracted（符号形态）
-    ['type_annotation', 5],        // ts covered（非符号，类型名经 trefs 进类型边族）
-    ['variable_declarator', 3],    // ts skipped
-    ['brand_new_item', 7],         // 未登记但声明样（后缀 item）→ unclassified
-    ['property_identifier', 999],  // 非声明样 → 完全不出现
+    ['function_declaration', 10],
+    ['type_annotation', 5],
+    ['variable_declarator', 3],
+    ['brand_new_item', 7],
+    ['property_identifier', 999],
   ])
   const cls = classifyCounts('ts', counts)
   assert.deepEqual(cls.extracted.map((x) => x.node), ['function_declaration'])
@@ -68,7 +68,7 @@ test('分类：五类分桶正确、按量级排序、非声明样节点被忽�
   assert.ok(cls.covered[0].why, 'covered 必须写清是**哪个机制**覆盖的')
   const many = classifyCounts('ts', new Map([['type_annotation', 1], ['import_specifier', 9]]))
   assert.deepEqual(many.covered.map((x) => x.node), ['import_specifier', 'type_annotation'], '按出现次数降序')
-  // rust 侧同样分桶（跨语言互不串味）
+
   const rs = classifyCounts('rust', new Map([['function_item', 2], ['field_declaration', 4], ['use_declaration', 3], ['let_declaration', 1]]))
   assert.deepEqual(rs.extracted.map((x) => x.node), ['field_declaration', 'function_item'], '字段已于第四十九轮补成符号（按量级降序）')
   assert.deepEqual(rs.covered.map((x) => x.node), ['use_declaration'], '导入声明 → 导入绑定（covered）')
@@ -96,7 +96,7 @@ test('普查端到端：fixture 里的类型标注与字段被报为"待补"，�
     const out = execFileSync(process.execPath, [AUDIT, '--repo', root, '--json'], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 })
     const j = JSON.parse(out)
     const nodes = (bucket) => j.merged.filter((x) => x.bucket === bucket).map((x) => x.node)
-    // 第四十九轮后：这些都是"已抽/已覆盖"，不再是待补
+
     assert.ok(nodes('covered').includes('type_annotation'), `类型标注应由 trefs 机制覆盖：${nodes('covered')}`)
     assert.ok(nodes('covered').includes('type_identifier'), `类型引用应由类型边族覆盖：${nodes('covered')}`)
     assert.ok(nodes('extracted').includes('field_declaration'), `Rust 字段应已抽成符号：${nodes('extracted')}`)
@@ -109,7 +109,7 @@ test('普查端到端：fixture 里的类型标注与字段被报为"待补"，�
 
 test('本仓库普查：登记表全量覆盖——未归类 0 且**待补 0**（第四十九轮补齐后）', { skip: !hasAst }, () => {
   const repo = path.resolve(HERE, '..', '..', '..')
-  if (!fs.existsSync(path.join(repo, '.repoctx', 'map.json'))) return // 无索引则不跑（保持零依赖可用）
+  if (!fs.existsSync(path.join(repo, '.repoctx', 'map.json'))) return
   const out = execFileSync(process.execPath, [AUDIT, '--repo', repo, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
   const j = JSON.parse(out)
   const pick = (b) => j.merged.filter((x) => x.bucket === b)

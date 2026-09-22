@@ -1,14 +1,14 @@
-/**
- * 端到端全动词测试（2026-09-16）：在**临时 fixture 仓库**上把每个动词跑一遍，断言退出码与关键输出。
- *
- * 为什么用 fixture 而不是本仓库：快、确定、不依赖本仓库内容；且能覆盖"改一个文件 → check 必须报漂移"
- * 这类需要写操作的场景。
- *
- * 覆盖到的真实回归点：
- *   · 取值 flag 白名单（`--files a,b` 曾被当布尔标志 → 路径掉进位置参数、seeds=0 静默无输出）；
- *   · `impls` 的双向关系；`affected` 的 seeds/affected 计数；`note/notes` 的持久化；
- *   · `check` 的漂移门禁；`index` 的确定性（两次产物逐字节一致）。
- */
+
+
+
+
+
+
+
+
+
+
+
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -46,42 +46,42 @@ write('src/b.ts', [
   '  return localOnlyValue',
   '}',
 ].join('\n'))
-// 另一个文件里的调用方：让 affected 有"改动文件之外"的被影响符号可断言
-// （fixture 太小时 caller 自己也在 seeds 里，affected 会被 seeds 抵消成 0——这是测试设计问题，不是工具问题）
+
+
 write('src/other.rs', 'pub fn outsider() -> u32 { helper() }\n')
 write('README.md', '# 测试仓库\n\n## 用法\n\ncallerFn 与 helper 会被 impact 覆盖。\n')
 
-// ── 四类确定性消解 prov 的各一组 fixture（2026-09-16：从"出现过"升级为"解析得对"）─────────
-// 每组的构造都严格对齐 repoctx.mjs 里该规则的**判定式**，否则会落到别的 prov 上（优先级：
-// qname → scope-unique → lexical → visibility；alias 只在该名**查不到任何定义**时兜底）。
 
-// alias：`use … as` 引进的别名在本文件无定义 → 兜底指向原名（原名必须唯一定义）
+
+
+
+
 write('src/alias_def.rs', 'pub fn original_fn() -> u32 { 1 }\n')
 write('src/alias_use.rs', [
   'use crate::alias_def::original_fn as renamed_fn;',
   'pub fn alias_caller() -> u32 { renamed_fn() }',
 ].join('\n'))
 
-// scope-unique：两个跨文件同名 fn（撞名 ≤3）且本文件恰有一个候选 → 连本文件那个
+
 write('src/sc_a.ts', [
   'export function scopedHelper() { return 1 }',
   'export function scopedCaller() { return scopedHelper() }',
 ].join('\n'))
 write('src/sc_b.ts', 'export function scopedHelper() { return 2 }\n')
 
-// lexical：候选不是"全是 fn/method"（scope-unique 不适用），本文件恰有一个顶层非 var/const 候选
+
 write('src/lex_a.ts', [
   'export interface LexItem { firstField: number }',
   'export function lexConsumer() { return LexItem }',
 ].join('\n'))
 write('src/lex_b.ts', 'export interface LexItem { secondField: string }\n')
 
-// visibility：跨文件候选里只有"可见"的那个胜出（TS 未 export 的符号在别文件不可见）
+
 write('src/vis_a.ts', 'export function visTarget() { return 1 }\n')
 write('src/vis_b.ts', 'function visTarget() { return 2 }\n')
 write('src/vis_c.ts', 'export function visCaller() { return visTarget() }\n')
 
-// 第四十九轮新动词的 fixture：类型引用族（typerefs）+ 导入绑定（imports）
+
 write('src/ty_a.rs', 'pub struct Cfg { pub retries: u32 }\n')
 write('src/ty_b.rs', 'pub fn build_cfg() -> Cfg { Cfg { retries: 1 } }\n')
 write('src/imp_user.ts', [
@@ -89,7 +89,7 @@ write('src/imp_user.ts', [
   'export function impCaller(z: number) { return usedHelper(z) }',
 ].join('\n'))
 
-/** 跑 CLI；返回 { code, out }（不抛，便于断言失败路径） */
+
 const run = (...args) => {
   try {
     return { code: 0, out: execFileSync(process.execPath, [CLI, ...args, '--repo', ROOT], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }) }
@@ -146,10 +146,10 @@ test('pipeline：阶段计数与 index 产物**一致**（同参同结构，防�
   const p2 = /<phase n="2"[^>]*edges="(\d+)" typeEdges="(\d+)"/.exec(r.out)
   assert.ok(p1 && p2, `阶段输出缺属性：${r.out}`)
   assert.equal(Number(p1[1]), map.stats.symbols, 'pipeline 与 index 的符号数必须一致')
-  // 这条曾失败：pipeline 调 buildEdges(symbols) 漏传 aliases → alias 兜底边全丢且无报错
+
   assert.equal(Number(p2[1]), map.stats.edges, 'pipeline 与 index 的调用边数必须一致（漏传 aliases 会在这里失败）')
   assert.equal(Number(p2[2]), map.stats.typeEdges, '类型边数必须一致')
-  // --out 派生视图必须带上两个新族，且端点数与产物对齐
+
   const out = path.join(ROOT, 'derived')
   assert.equal(run('pipeline', '--out', out).code, 0)
   const cg = JSON.parse(fs.readFileSync(path.join(out, 'call_graph.json'), 'utf8'))
@@ -162,7 +162,7 @@ test('pipeline：阶段计数与 index 产物**一致**（同参同结构，防�
 test('resolveSymbol：模糊命中必须自我披露（不许静默用近似名）', () => {
   const exact = run('callers', 'usedHelper')
   assert.ok(!exact.out.includes('模糊匹配'), `精确命中不得出现模糊提示：${exact.out}`)
-  const fuzzy = run('callers', 'usedhelpe') // 子串命中 usedHelper
+  const fuzzy = run('callers', 'usedhelpe')
   assert.ok(fuzzy.out.includes('模糊匹配'), `模糊命中必须自我披露（否则闭包看起来正常、实则是另一个符号）：${fuzzy.out}`)
 })
 
@@ -178,7 +178,7 @@ test('affected：--files 取值标志解析正确（曾经掉进位置参数 →
 })
 
 test('UFCS：`Trait::method(x)` 经 qname 消解成边（prov=qname，严格模式不回落裸名）', () => {
-  // fixture 的 a.rs 里有 `Runner::run(&a)`：限定路径 Runner × 候选 q=Runner::run（trait 方法声明）
+
   const map = JSON.parse(fs.readFileSync(path.join(ROOT, '.repoctx', 'map.json'), 'utf8'))
   const nameOf = (i) => map.symbols[i].q || map.symbols[i].n
   const qn = map.edges.filter((e) => e.prov === 'qname')
@@ -186,15 +186,15 @@ test('UFCS：`Trait::method(x)` 经 qname 消解成边（prov=qname，严格模�
   const toRun = qn.filter((e) => nameOf(e.to) === 'Runner::run')
   assert.equal(toRun.length, 1, `应恰好一条指向 Runner::run 的 qname 边，实际 ${JSON.stringify(qn.map((e) => nameOf(e.to)))}`)
   assert.equal(nameOf(toRun[0].from), 'entry', '调用方应是 entry')
-  // 严格模式：`Runner::run` 不应同时产生指向 impl 方法（Alpha::run）的裸名边
+
   const toAlphaRun = map.edges.filter((e) => nameOf(e.to) === 'Alpha::run')
   assert.equal(toAlphaRun.length, 0, `限定路径已说明意图，不应回落裸名连到 Alpha::run：${JSON.stringify(toAlphaRun)}`)
 })
 
-// ── 四类确定性消解：行为断言（不是"出现过"，而是"解析得对"）─────────────────────
-// 统一断言口径：读完 map.json，按 prov 取边，把端点渲染成"文件::限定名"，逐条对拍。
 
-/** 读产物并返回 { edgesOf(prov), label(idx) } */
+
+
+
 const artifact = () => {
   const map = JSON.parse(fs.readFileSync(path.join(ROOT, '.repoctx', 'map.json'), 'utf8'))
   const label = (i) => {
@@ -228,7 +228,7 @@ test('prov=visibility：跨文件唯一"可见"候选胜出（未 export 的在 
   const { edgesOf, map } = artifact()
   assert.deepEqual(edgesOf('visibility'), ['vis_c.ts::visCaller → vis_a.ts::visTarget'],
     '应连 export 过的 vis_a.ts::visTarget，而不是未 export 的 vis_b.ts')
-  // 负向：未 export 的目标不得以任何 prov 出现在 visCaller 的出边里
+
   const callerIdx = map.symbols.findIndex((s) => s.n === 'visCaller')
   const bad = map.edges.filter((e) => e.from === callerIdx && map.symbols[e.to].p === 'src/vis_b.ts')
   assert.equal(bad.length, 0, `不可见目标不应连边：${JSON.stringify(bad)}`)
@@ -241,11 +241,11 @@ test('typerefs：类型引用族——"谁引用了这个类型"，且**不进�
   assert.ok(/inEdges="[1-9]/.test(r.out), `Cfg 应有类型引用入边：${r.out}`)
   assert.ok(r.out.includes('build_cfg'), `入边应含 build_cfg（它在返回类型位引用了 Cfg）：${r.out}`)
   const map = JSON.parse(fs.readFileSync(path.join(ROOT, '.repoctx', 'map.json'), 'utf8'))
-  // 纯度：调用图里**不得**有指向 Cfg 的边（类型引用不是调用——拆族前 `-> Cfg` 就是一条"调用"边）
+
   const viaCall = map.edges.filter((e) => map.symbols[e.to].n === 'Cfg').map((e) => map.symbols[e.from].n)
   assert.deepEqual(viaCall, [], `调用图不得有指向 Cfg 的边（类型引用走 typeEdges）：${JSON.stringify(viaCall)}`)
   assert.ok((map.typeEdges || []).some((e) => map.symbols[e.to].n === 'Cfg'), '类型边族里应有指向 Cfg 的边')
-  // 字段也有容器链（声明层补齐的成员符号）
+
   const retries = map.symbols.find((s) => s.n === 'retries')
   assert.equal(retries.t, 'field')
   assert.equal(retries.q, 'Cfg::retries')
@@ -288,7 +288,7 @@ test('产物版本护栏：旧 schema 的 map.json 必须显式失败（不许�
   const r = run('callers', 'helper')
   assert.notEqual(r.code, 0, '旧版本产物必须拒绝读取（缺 typeEdges/imports 会给出看起来正常的错答案）')
   assert.ok(r.out.includes('版本不符'), r.out)
-  fs.writeFileSync(f, good, 'utf8') // 复原，避免影响后续测试
+  fs.writeFileSync(f, good, 'utf8')
   assert.equal(run('callers', 'helper').code, 0)
 })
 
@@ -314,13 +314,13 @@ test('note --file：文件级笔记能被 context 带出', () => {
   assert.ok(run('context', 'helper').out.includes('文件级笔记'), 'context 应带出同文件的人写笔记')
 })
 
-// 同名组：2 个 struct + 1 个 impl（impl 名字取自类型）→ 供 amb 的 impl 标注断言
+
 write('src/amb_pair.rs', [
   'pub struct PairType { pub left_side: u32 }',
   'impl PairType { pub fn build_pair() -> PairType { PairType { left_side: 1 } } }',
 ].join('\n'))
 write('src/amb_pair2.rs', 'pub struct PairType { pub right_side: u32 }\n')
-// 值位置裸引用 → 该组变成"活跃组"（refs>0 才会出现在 amb 的组列表里）
+
 write('src/amb_use.rs', 'pub fn use_pair_type() -> u32 { let _tmp = PairType; 1 }\n')
 
 test('files：文件级度量（--by size|syms|cx、--dir 过滤、非法维度显式失败）', () => {
@@ -332,12 +332,12 @@ test('files：文件级度量（--by size|syms|cx、--dir 过滤、非法维度�
   const rows = [...r.out.matchAll(/<f p="([^"]+)" lang="([^"]+)" bytes="(\d+)" syms="(\d+)" cxMax="(\d+)" cxSum="(\d+)"/g)]
   assert.ok(rows.length > 0, `缺文件行：${r.out}`)
   assert.ok(rows.every((m) => m[5] !== '' && m[6] !== ''), 'cxMax/cxSum 必须是数字（不是空串）')
-  // --dir 限定子树
+
   const d = run('files', '--dir', 'src')
   assert.equal(d.code, 0, d.out)
   const paths = [...d.out.matchAll(/<f p="([^"]+)"/g)].map((m) => m[1])
   assert.ok(paths.length > 0 && paths.every((p) => p.startsWith('src/')), `--dir 应只列该子树：${JSON.stringify(paths)}`)
-  // 非法维度必须显式失败（不许静默退回默认）
+
   const bad = run('files', '--by', 'bogus')
   assert.notEqual(bad.code, 0, '未知 --by 必须非零退出')
   assert.ok(bad.out.includes('未知 --by'), bad.out)
@@ -349,13 +349,13 @@ test('amb NAME：impl 块单独标注（"类型 + 其 impl"不是重复定义）
   assert.equal(r.code, 0, r.out)
   assert.ok(/defs="3" impls="1"/.test(r.out), `应把 1 个 impl 从 3 条定义里拆出来标注：${r.out}`)
   assert.ok(r.out.includes('不是重复定义'), `note 必须解释 impl 的命名语义：${r.out}`)
-  // 组列表用同一套标注
+
   const list = run('amb', '--top', '80')
   assert.ok(/<g n="PairType" defs="3" impls="1"/.test(list.out), `组列表也应带 impls=：${list.out}`)
 })
 
-// 文档段落（md 标题）撞名：两份文档有同名标题，且正文里提到它 → 该组"活跃"（refs>0），
-// 从而既能验证"默认隐藏"，也能验证 `--docs` 时的列表标注。标题用无空格串，确保能被 tokenize。
+
+
 write('docs/guide-a.md', '# 指南 A\n\n## ambdocmarker\n\n见 ambdocmarker 的说明。\n')
 write('docs/guide-b.md', '# 指南 B\n\n## ambdocmarker\n\n另一份文档。\n')
 
@@ -369,7 +369,7 @@ test('amb：文档段落（md 标题）撞名**不算代码歧义**——纯文�
   assert.ok(!list.out.includes('n="ambdocmarker"'), '纯文档组不应出现在默认列表里')
   assert.ok(list.out.includes('纯文档组默认隐藏'), 'note 要说明隐藏原因与放开方式')
 
-  // --docs 放开：组数变多、头部披露归零并标记 docs=1，文档组带 doc="2"
+
   const withDocs = run('amb', '--docs', '--top', '80')
   assert.equal(withDocs.code, 0, withDocs.out)
   assert.ok(/docsHidden="0"/.test(withDocs.out) && /docs="1"/.test(withDocs.out), `--docs 应放开并标记：${withDocs.out}`)
@@ -378,14 +378,14 @@ test('amb：文档段落（md 标题）撞名**不算代码歧义**——纯文�
   assert.ok(n2 > n1, `--docs 的组数应多于默认（${n1} → ${n2}）`)
   assert.ok(/<g n="ambdocmarker" defs="2" doc="2"/.test(withDocs.out), `文档组要带 doc= 标注：${withDocs.out}`)
 
-  // 单组展开：即便默认隐藏，显式点名仍可看，并直说"这不是代码歧义"
+
   const one = run('amb', 'ambdocmarker')
   assert.equal(one.code, 0, one.out)
   assert.ok(/n="ambdocmarker" defs="2" doc="2"/.test(one.out), one.out)
   assert.ok(one.out.includes('全部来自文档段落'), `note 要指出这是文档撞名：${one.out}`)
 })
 
-// cxOwn：容器函数内嵌套函数——容器的 cx 含嵌套定义，cxOwn 应把嵌套部分扣除
+
 write('src/cxown.rs', [
   'pub fn outer_fn() -> u32 {',
   '    fn inner_fn() -> u32 { if true { 1 } else { 2 } }',
@@ -394,7 +394,7 @@ write('src/cxown.rs', [
   '',
   'pub fn leaf_fn() -> u32 { 7 }',
 ].join('\n'))
-// dupes：同名文件两份（不同目录）——验证 files --by dupes 的分组
+
 write('src/dupa/same_named.rs', 'pub fn in_dupa() -> u32 { 1 }\n')
 write('src/dupb/same_named.rs', 'pub fn in_dupb() -> u32 { 2 }\n')
 
@@ -405,7 +405,7 @@ test('cxOwn：容器符号扣除嵌套定义的分支数（cxOwn < cx；叶子�
   const m = /cx="(\d+)" cxOwn="(\d+)"/.exec(outer.out)
   assert.ok(m, `容器符号应同时带 cx 与 cxOwn：${outer.out}`)
   assert.ok(Number(m[2]) < Number(m[1]), `cxOwn 应小于 cx（嵌套部分归子符号）：${outer.out}`)
-  // 叶子符号（无嵌套）cxOwn == cx → 属性省略（省噪声）
+
   const leaf = run('symbol', 'leaf_fn')
   assert.equal(leaf.code, 0, leaf.out)
   assert.ok(!/cxOwn=/.test(leaf.out), `叶子符号不应带 cxOwn：${leaf.out}`)
