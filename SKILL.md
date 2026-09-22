@@ -19,6 +19,13 @@ user-invocable: true
 
 > 本工具是**名字级浅索引**，输出是**附加证据**：任何结论（调用者、影响面、边界）在用于改动决策前，必须对照 checkout 的真实源码复核。文件/符号存在只证明"检索种子有效"，**不证明行为存在，更不证明有测试覆盖**。需要类型级精度（重载消歧、重命名重构）时用真正的 LSP/编译器工具；本工具不可用时报告不可用，不要用编造的命令替代。
 
+## 脚本路径（两种安装方式）
+
+命令里的 `<SKILL_DIR>` 指**本技能目录**，取决于安装方式：
+
+- SkillHub / 放进 skills 目录：`~/.codebuddy/skills/repo-context`（发布版写作 `${CODEBUDDY_SKILL_DIR}`）
+- 插件安装（`code-search-tools@baozi-tools`）：`<插件根>/skills/repo-context`，插件根用 `${CODEBUDDY_PLUGIN_ROOT}` 取，或用 `codebuddy plugin list` 查
+
 ## 什么时候用我（触发词）
 
 **触发词**：在哪实现 / 谁调用它 / 改它会波及哪些代码 / 爆炸半径 / 仓库地图 / 枢纽文件 / 阅读顺序 / 这个仓库的既有经验。
