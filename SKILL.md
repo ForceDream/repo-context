@@ -24,7 +24,7 @@ user-invocable: true
 命令里的 `<SKILL_DIR>` 指**本技能目录**，取决于安装方式：
 
 - SkillHub / 放进 skills 目录：`~/.codebuddy/skills/repo-context`（发布版写作 `${CODEBUDDY_SKILL_DIR}`）
-- 插件安装（`code-search-tools@baozi-tools`）：`<插件根>/skills/repo-context`，插件根用 `${CODEBUDDY_PLUGIN_ROOT}` 取，或用 `codebuddy plugin list` 查
+- 插件安装：`<插件根>/skills/repo-context`，插件根用 `${CODEBUDDY_PLUGIN_ROOT}` 取，或用 `codebuddy plugin list` 查
 
 ## 什么时候用我（触发词）
 
@@ -106,6 +106,27 @@ npm install --prefix "<SKILL_DIR>" web-tree-sitter@0.20.8 tree-sitter-wasms
 
 必须 `web-tree-sitter@0.20.8`（0.27 与 tree-sitter-wasms 的 ABI 不兼容）。**未安装时自动落回行级，不失败、不阻塞**——先跑行级，觉得需要更准再装。
 
+**体积口径（两档不同，别混）**：单文件 **>2MB 直接跳过**——不入索引、也**不计入 `check` 的漂移检查**；AST 解析上限是 **1MB**，1–2MB 的文件自动走行级（不报错）。
+
+## 大仓只索引源码（排除非源码子树）
+
+**索引范围**：git 仓 → 已跟踪文件 **+ 未跟踪但未被 `.gitignore` 忽略的文件**（新建、还没 `git add` 的文件也在索引里，否则刚写的代码查不到）；非 git 目录 → 按排除表遍历整个工作树。
+
+默认已挡掉依赖 / 产物 / 缓存 / VCS 目录（`node_modules`、`vendor`、`third_party`、`deps`、`target`、`dist`、`build`、`out`、`coverage`、`.venv`、`__pycache__`、`.next`、`.gradle`、`Pods`、`.agents`、`archive` …）。
+
+`apps/`、`modules/`、`lib/`、`bin/`、`src/`、`docs/` 这类**在别的项目里就是源码**的位置**不进默认表**（误挡真源码比多索引几个目录严重）——要排就显式排：
+
+```json
+// .repoctx/config.json（入库、可评审）
+{ "skipDirs": ["apps", "modules/legacy", "packages/*/fixtures"] }
+```
+
+三种写法：**目录名**（任意层级命中）、**相对路径前缀**（如 `apps/zcode-cli`）、**含 `*` 的路径段通配**。
+一次性试排：`--skip-dir apps,modules`（临时追加，不落配置）。
+
+效果（ZCode-main，pnpm monorepo）：默认 **3965 文件 / 21.2s**；排掉 `apps` 后 **2560 文件 / 10.1s**，同名歧义组 327703 → 157664。
+`index` 与 `pipeline` 会把生效的排除打印出来（`额外排除 apps, modules` / `skip="apps"`）——排多了当场看得见。
+
 ## 产物（一份仓库记忆体）
 
 | 文件 | 由谁产生 | 性质 | 是否入库 |
@@ -113,7 +134,7 @@ npm install --prefix "<SKILL_DIR>" web-tree-sitter@0.20.8 tree-sitter-wasms
 | `.repoctx/map.json` | `index` | 机器事实，可重建、不含时间戳 | 否 |
 | `.repoctx/notes.jsonl` | `note` | 人写经验（含 kind/别名/一跳关系），追加式、不可重建 | 是 |
 | `.repoctx/MAP.md` | `export` | 人读投影，可 diff、可评审 | 是 |
-| `.repoctx/config.json` | 人 | 枢纽打分白名单与系数 | 是 |
+| `.repoctx/config.json` | 人 | 枢纽打分白名单与系数、**索引排除目录 `skipDirs`** | 是 |
 | `.repoctx/policy.yaml` | 人 | 模块边界声明（归不归管/依赖谁/对外入口/owner），可 diff | 是 |
 | `.repoctx/baseline.json` | `policy --baseline-update` | 已接受的存量边界违规账本（fingerprint 认账） | 是 |
 

@@ -1,54 +1,24 @@
 #!/usr/bin/env node
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-
-import { LANG_BY_EXT, INDEXED_EXT, SKIP_DIR, MAX_FILE_BYTES, posix, resolveGit, listSourceFiles } from './repoctx-files.mjs'
-
+import { LANG_BY_EXT, INDEXED_EXT, SKIP_DIR, MAX_FILE_BYTES, posix, resolveGit, listSourceFiles, loadSkipDirs } from './repoctx-files.mjs'
 import { aliasScan, buildEdges, dispatchOf, reexportScan } from './repoctx-edges.mjs'
-
 import { parsePolicy, validatePolicy, runPolicyCheck, fingerprint, POLICY_TEMPLATE } from './repoctx-policy.mjs'
 import { SCHEMA, createQueryLayer, esc } from './repoctx-core.mjs'
-
-
-
 
 const argv = process.argv.slice(2)
 const cmd = argv[0]
 const VALUE_FLAGS = new Set([
   'repo', 'top', 'max-tokens', 'depth', 'out',
-
   'sym', 'file', 'text', 'tags', 'contains',
-
   'files', 'diff',
-
   'by', 'dir',
-
   'kind', 'alias', 'rel', 'id',
-
   'max-behind', 'policy',
+  'skip-dir',
 ])
 const flags = {}
 const positional = []
@@ -68,8 +38,6 @@ const NOTES_FILE = path.join(OUT_DIR, 'notes.jsonl')
 
 const INCLUDE_DOCS = Boolean(flags['include-docs'])
 
-
-
 const Q = createQueryLayer({ repo: REPO, outDir: OUT_DIR, includeDocs: INCLUDE_DOCS })
 const { loadMap, readNotes, callEdges, pagerankOf, inDegree, calleesOf, hubModelOf, ambGroupsOf, collapseRows,
   docCountOf, codeAmbGroups,
@@ -78,13 +46,10 @@ const { loadMap, readNotes, callEdges, pagerankOf, inDegree, calleesOf, hubModel
 const BODY_SCAN_CHARS = 4000
 const DOC_LINES = 3
 
-
 function run(cmd, args, opts = {}) {
   const exe = cmd === 'git' ? resolveGit() : cmd
   if (!exe) return null
   try {
-
-
     return execFileSync(exe, args, { cwd: REPO, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts })
   } catch {
     return null
@@ -92,10 +57,15 @@ function run(cmd, args, opts = {}) {
 }
 
 
-function listFiles() {
-  return listSourceFiles(REPO, { gitBin: resolveGit() })
-}
+const SKIP_DIRS = [
+  ...loadSkipDirs(REPO),
+  ...String(flags['skip-dir'] || '').split(',').map((s) => s.trim()).filter(Boolean),
+]
 
+
+function listFiles() {
+  return listSourceFiles(REPO, { gitBin: resolveGit(), extraSkip: SKIP_DIRS })
+}
 
 const RUST_RULES = [
   [/^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern\s+"[^"]*"\s+)?fn\s+([A-Za-z_]\w*)/, 'fn'],
@@ -114,7 +84,6 @@ const TS_RULES = [
   [/^\s*(?:export\s+)?(?:type|enum)\s+([A-Za-z_$][\w$]*)/, 'type'],
   [/^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(/, 'fn'],
   [/^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*[:=]/, 'var'],
-
   [/^\s{2,}(?:public |private |protected |static |async |readonly |override |get |set )*([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*(?::\s*[^{;]+)?\{/, 'method'],
 ]
 const PY_RULES = [
@@ -123,12 +92,6 @@ const PY_RULES = [
   [/^([A-Za-z_]\w*)\s*[:=]/, 'var'],
 ]
 const BRANCH_RE = /\b(if|else|elif|for|while|match|case|switch|catch|except|when)\b|&&|\|\||\?\?|\?(?=[^?])/g
-
-
-
-
-
-
 
 import { loadHubConfig, createHubModel, stripNoise, isVendorPath, hubNormTable } from './repoctx-hub.mjs'
 
@@ -168,7 +131,6 @@ function extractSymbols(relPath, text) {
   if (lang === 'md') {
     lines.forEach((line, i) => {
       const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line)
-
       if (m) found.push({ name: m[2].slice(0, 120), kind: 'sec', line: i + 1, level: m[1].length, ind: m[1].length })
     })
     return found
@@ -180,7 +142,6 @@ function extractSymbols(relPath, text) {
       if (!m) continue
       const name = m[1]
       if (!name || name.length < 2) continue
-
       if (KEYWORDS.has(name)) continue
       found.push({
         name, kind, line: i + 1,
@@ -194,7 +155,6 @@ function extractSymbols(relPath, text) {
   return found
 }
 
-
 function churnMap() {
   const out = run('git', ['log', '--name-only', '--pretty=format:', '-n', '800'])
   const counts = {}
@@ -207,13 +167,6 @@ function churnMap() {
 }
 
 
-
-
-
-
-
-
-
 let LAST_READ_ERRORS = []
 
 function buildIndex() {
@@ -221,16 +174,15 @@ function buildIndex() {
   const files = []
   const symbols = []
   const rels = listFiles().filter((rel) => INDEXED_EXT.has(path.extname(rel).toLowerCase()))
-
-
-
-
   let parallel = null
   if (ast.available && rels.length >= 64 && process.env.REPOCTX_PARALLEL !== '0') {
+
     const raw = run(process.execPath, [
       path.join(SKILL_DIR, 'scripts', 'repoctx-parallel.mjs'), '--repo', REPO, '--wasm', WASM_DIR,
-      '--files', JSON.stringify(rels.map((rel) => ({ rel, lang: LANG_BY_EXT[path.extname(rel).toLowerCase()] }))),
-    ])
+      '--files', '-',
+    ], {
+      input: JSON.stringify(rels.map((rel) => ({ rel, lang: LANG_BY_EXT[path.extname(rel).toLowerCase()] }))),
+    })
     if (raw) {
       try {
         const j = JSON.parse(raw)
@@ -250,11 +202,8 @@ function buildIndex() {
     let text
     try { text = fs.readFileSync(abs, 'utf8') } catch (e) { LAST_READ_ERRORS.push({ rel, why: String(e?.message || e) }); continue }
     const lang = LANG_BY_EXT[ext]
-
-
     let syms = null
     if (parallel) {
-
       const rec = parallel.files?.[rel]
       syms = rec?.syms || null
       if (syms && rec.imports) {
@@ -267,27 +216,18 @@ function buildIndex() {
     if (!syms) syms = extractSymbols(rel, text)
     const fileId = files.length
     files.push({ p: rel, lang, bytes: stat.size, symbols: syms.length })
-
     const fileLines = text.split(/\r?\n/)
-
-
-
-
     const astImp = syms.imports
     const ali = astImp ? astImp.aliases : aliasScan(text, lang)
     if (ali.size) aliases.set(rel, ali)
     if (astImp && astImp.names.length) importsOf.set(rel, astImp.names)
     else if (!astImp) {
-
       const nm = [...new Set([...ali.values()])]
       if (nm.length) importsOf.set(rel, nm)
     }
-
     const rex = reexportScan(text, lang)
     if (rex.length) reexportsOf.set(rel, rex)
     syms.forEach((s, i) => {
-
-
       let endLine = s.endLine
       if (!endLine) {
         endLine = fileLines.length
@@ -296,12 +236,7 @@ function buildIndex() {
         }
       }
       const body = fileLines.slice(s.line - 1, endLine).join('\n').slice(0, BODY_SCAN_CHARS)
-
-
-
       const ind = s.ind ?? 0
-
-
       const local = s.local === true || ((s.kind === 'var' || s.kind === 'const') && ind > 0)
       symbols.push({
         p: rel, n: s.name, t: s.kind, l: s.line, el: endLine,
@@ -320,11 +255,6 @@ function buildIndex() {
       })
     })
   }
-
-
-
-
-
   {
     const byFile = new Map()
     symbols.forEach((s) => {
@@ -335,9 +265,6 @@ function buildIndex() {
       arr.sort((a, b) => a.l - b.l || (b.el ?? 0) - (a.el ?? 0))
       const stack = []
       for (const s of arr) {
-
-
-
         while (stack.length && (stack[stack.length - 1].el ?? Number.MAX_SAFE_INTEGER) < s.l) stack.pop()
         for (const a of stack) {
           if (s.l > a.l) a._desc = (a._desc || 0) + (s.cx || 0)
@@ -354,12 +281,6 @@ function buildIndex() {
 }
 
 
-
-
-
-
-
-
 function buildMap() {
   const { files, symbols, aliases, importsOf, reexportsOf } = buildIndex()
   const { edges, typeEdges, ambiguous, ambRefs, ambTypes, localOnly } = buildEdges(symbols, aliases)
@@ -372,14 +293,9 @@ function buildMap() {
     files,
     symbols,
     edges,
-
     typeEdges,
-
     imports: Object.fromEntries([...importsOf].sort((a, b) => a[0].localeCompare(b[0]))),
-
     reexports: Object.fromEntries([...reexportsOf].sort((a, b) => a[0].localeCompare(b[0]))),
-
-
     ambRefs,
   }
 }
@@ -395,20 +311,6 @@ function appendNote(rec) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WASM_DIR = process.env.REPOCTX_WASM_DIR || path.join(SKILL_DIR, 'node_modules', 'tree-sitter-wasms', 'out')
 let ast = { available: false, reason: '未初始化' }
@@ -418,9 +320,6 @@ try {
 } catch (e) {
   ast = { available: false, reason: e.message }
 }
-
-
-
 
 const numFlag = (v, d, name) => {
   if (v === undefined || v === null || v === '') return d
@@ -437,8 +336,6 @@ const maxTokens = numFlag(flags['max-tokens'], 6000, 'max-tokens')
 switch (cmd) {
   case 'index': {
     const map = buildMap()
-
-
     if (LAST_READ_ERRORS.length) {
       console.error(`✗ 索引不完整，已放弃写入：${LAST_READ_ERRORS.length} 个源文件读取失败（Windows 上常见于杀软/索引器短暂锁文件；稍后重跑即可）`)
       for (const r of LAST_READ_ERRORS.slice(0, 5)) console.error(`    ${r.rel} — ${r.why}`)
@@ -451,6 +348,9 @@ switch (cmd) {
     console.log(`✓ 已索引 ${path.relative(process.cwd(), REPO) || '.'}`)
     console.log(`  文件 ${st.files} · 符号 ${st.symbols} · 边 ${st.edges} · 歧义未连 ${st.ambiguous}`
       + `${st.localOnly ? ` · 函数局部引用 ${st.localOnly}（非 API，单列不计歧义）` : ''}`)
+    if (SKIP_DIRS.length) {
+      console.log(`  额外排除 ${SKIP_DIRS.join(', ')}（来自 .repoctx/config.json 的 skipDirs 或 --skip-dir）`)
+    }
     console.log(`  产物 ${posix(path.relative(REPO, MAP_FILE))}（${Math.round(fs.statSync(MAP_FILE).size / 1024)} KB，不含时间戳→可做 0 漂移校验）`)
     console.log(ast.available
       ? `  抽取器：AST/tree-sitter（${ast.langs.join(' ')}）`
@@ -459,8 +359,6 @@ switch (cmd) {
   }
   case 'check': {
     const fresh = JSON.stringify(serializable(buildMap()))
-
-
     if (LAST_READ_ERRORS.length) {
       console.error(`✗ 无法验证索引：${LAST_READ_ERRORS.length} 个源文件读取失败（Windows 上常见于杀软/索引器短暂锁文件；稍后重跑即可）`)
       for (const r of LAST_READ_ERRORS.slice(0, 5)) console.error(`    ${r.rel} — ${r.why}`)
@@ -472,8 +370,6 @@ switch (cmd) {
       process.exit(1)
     }
     console.log('✓ 索引与源码一致（0 漂移）')
-
-
     const st = loadMap().stats
     const mdPath = path.join(OUT_DIR, 'MAP.md')
     const md = fs.existsSync(mdPath) ? fs.readFileSync(mdPath, 'utf8') : ''
@@ -485,11 +381,6 @@ switch (cmd) {
     } else {
       console.log('✓ MAP.md 与 map.json 同源一致')
     }
-
-
-
-
-
     if (!flags['no-freshness']) {
       if (!run('git', ['rev-parse', '--git-dir'])) {
         console.log('⚠ 非 git 目录：跳过 git 新鲜度检查')
@@ -504,7 +395,6 @@ switch (cmd) {
             fail = true
           } else console.log(`✓ 与上游 ${upstream} 同步`)
         }
-
         let main = (run('git', ['rev-parse', '--abbrev-ref', 'origin/HEAD']) || '').trim()
         main = main.startsWith('origin/') ? main : null
         if (!main) {
@@ -535,9 +425,6 @@ switch (cmd) {
         }
       }
     }
-
-
-
     const allNotes = readNotes()
     if (allNotes.length) {
       const m1 = loadMap()
@@ -556,14 +443,8 @@ switch (cmd) {
   case 'for': {
     const map = loadMap()
     const query = positional.join(' ')
-
-
-
     const rows = collapseRows(map, lensFor(map, query, top * 3)).slice(0, top)
     const lines = [`<ctx task="${esc(query)}" schema="${SCHEMA}" files="${map.stats.files}" symbols="${map.stats.symbols}" edges="${map.stats.edges}" ambiguous="${map.stats.ambiguous}">`]
-
-
-
     const nameLower = new Set(map.symbols.map((s) => s.n.toLowerCase()))
     const noHit = [...new Set(tokenize(query))].filter((t) => !nameLower.has(t))
     if (noHit.length && rows.length) {
@@ -572,11 +453,7 @@ switch (cmd) {
     if (!rows.length) {
       lines.push('<!-- 无命中：没有任何符号的名字/路径/doc/签名命中任务词（不是被预算裁掉）。改用符号名关键词，或先 index 刷新 -->')
     }
-
     const hubNorm = hubModelOf(map).norm
-
-
-
     const FOOTER_RESERVE = 16
     let used = estTokens(lines[0]) + FOOTER_RESERVE
     let shown = 0
@@ -613,18 +490,11 @@ switch (cmd) {
     }
     const { i } = hits[0]
     if (cmd === 'symbol') { console.log(symLine(map, i)); break }
-
     const name0 = map.symbols[i].n
     if (cmd === 'callers') {
-
-
-
       const set = new Set(hits.map((h) => h.i))
       const callers = callEdges(map).filter((e) => set.has(e.to))
       const multi = hits.length > 1
-
-
-
       const reExportedBy = Object.entries(map.reexports || {})
         .map(([f, items]) => ({ f, item: items.find((it) => it.name === name0) }))
         .filter((x) => x.item)
@@ -653,9 +523,6 @@ switch (cmd) {
     const depth = numFlag(flags.depth, 3, 'depth')
     const withTypes = Boolean(flags.types)
     const { list: aff, viaType } = impactDetail(map, i, depth, { types: withTypes })
-
-
-
     const disp = dispatchOf(map)
     const dispSet = new Set()
     for (const { i: di } of hits) {
@@ -681,19 +548,10 @@ switch (cmd) {
     break
   }
   case 'affected': {
-
-
-
-
     const map = loadMap()
-
-
     let files = String(flags.files || '').split(',').map((x) => x.trim().replace(/\\/g, '/').replace(/^\.\//, '')).filter(Boolean)
     let baseRev = null
     if (flags.diff) {
-
-
-
       const rev = flags.diff === true ? 'origin/HEAD' : String(flags.diff)
       baseRev = (run('git', ['merge-base', rev, 'HEAD']) || run('git', ['rev-parse', rev]) || '').trim() || null
       const out = baseRev ? run('git', ['diff', '--name-only', baseRev]) : null
@@ -744,12 +602,6 @@ switch (cmd) {
     break
   }
   case 'note': {
-
-
-
-
-
-
     const text = flags.text || positional.join(' ')
     if (!text) {
       console.error('✗ 用法：repoctx note --sym NAME --text "..." [--file PATH] [--tags a,b] [--kind pitfall] [--alias 别名1,alias2] [--rel SYM1,SYM2] [--id my-note-id]')
@@ -776,7 +628,6 @@ switch (cmd) {
     break
   }
   case 'notes': {
-
     if (flags.drift) {
       const mapD = loadMap()
       const symNames = new Set(mapD.symbols.map((s) => s.n))
@@ -808,12 +659,9 @@ switch (cmd) {
     break
   }
   case 'context': {
-
     const map = loadMap()
     const hits = resolveSymbol(map, positional[0])
     const { s, i } = hits[0]
-
-
     const defSet = new Set(hits.map((h) => h.i))
     const callers = callEdges(map).filter((e) => defSet.has(e.to))
     const docs = map.edges.filter((e) => defSet.has(e.to) && e.prov === 'doc').map((e) => e.from)
@@ -827,21 +675,14 @@ switch (cmd) {
       for (const j of d.viaType) viaTypeAll.add(j)
     }
     const aff = [...affSet]
-
-
-
     const typeEdges = map.typeEdges || []
     const typeIn = typeEdges.filter((e) => defSet.has(e.to))
     const typeOut = typeEdges.filter((e) => defSet.has(e.from))
     const importFiles = Object.entries(map.imports || {}).filter(([, names]) => names.includes(s.n)).map(([f]) => f)
-
-
     const notes = readNotes().filter((r) => r.sym === s.n || (r.file && r.file === s.p)
       || (Array.isArray(r.rel) && r.rel.includes(s.n))
       || (Array.isArray(r.aliases) && r.aliases.includes(s.n)))
     const boundBy = (r) => (r.sym === s.n ? 'sym' : r.file === s.p ? 'file' : Array.isArray(r.rel) && r.rel.includes(s.n) ? 'rel' : 'alias')
-
-
     console.log(`<context sym="${esc(s.n)}" t="${s.t}" p="${esc(s.p)}" l="${s.l}" cx="${s.cx}"${confNote(map, i, callers.length)}>`)
     if (s.doc) console.log(`  <doc>${esc(s.doc)}</doc>`)
     if (notes.length) {
@@ -893,7 +734,6 @@ switch (cmd) {
     break
   }
   case 'export': {
-
     const map = loadMap()
     const rank = pagerankOf(map)
     const notes = readNotes()
@@ -906,8 +746,6 @@ switch (cmd) {
     L.push(`> 抽取器：**${ast.available ? 'AST/tree-sitter' : '行级（AST 未启用）'}**；边的 ` + '`prov`' + ` 语义：\`name\`=全局唯一名匹配、\`same-file\`、\`doc\`=文档提及（不计入调用图）。`)
     L.push('')
 
-
-
     const { model: hubModel, cfg: hubCfg } = hubModelOf(map)
     const hubRows = hubModel.collapse(hubModel.ranking(top * 3)).slice(0, top)
     L.push(`## 枢纽符号（多特征加权，共 ${hubRows.length} 条）`)
@@ -919,14 +757,10 @@ switch (cmd) {
     L.push('| 符号（限定名） | 类型 | 位置 | 得分 | 归一化入度 | 同名 | 因子(类型/路径/名/跨度/广度) | cx |')
     L.push('| --- | --- | --- | --- | --- | --- | --- | --- |')
     for (const h of hubRows) {
-
       const label = h.s.q || h.s.n
       L.push(`| \`${label}\` | ${h.s.t} | \`${h.s.p}:${h.s.l}\` | ${h.score.toFixed(4)} | ${h.norm.toFixed(2)} | ${h.ambCount > 1 ? h.amb : 1} | ${h.k}/${h.pw}/${h.nw}/${h.sw}/${h.bw} | ${h.s.cx} |`)
     }
     L.push('')
-
-
-
 
     const { code: groups, hidden: docsHidden } = codeAmbGroups(map)
     L.push(`## 歧义组（同名定义 >1 的**代码名**，共 ${groups.length} 组；只列被引用最多的 ${Math.min(top, groups.length)} 组）`)
@@ -948,7 +782,6 @@ switch (cmd) {
     }
     L.push('')
 
-
     const byFile = new Map()
     map.symbols.forEach((s, i) => {
       if (!byFile.has(s.p)) byFile.set(s.p, [])
@@ -968,7 +801,6 @@ switch (cmd) {
       L.push('')
     }
 
-
     L.push(`## 记忆（人写笔记，共 ${notes.length} 条，源：\`.repoctx/notes.jsonl\`）`)
     L.push('')
     if (!notes.length) {
@@ -987,19 +819,12 @@ switch (cmd) {
     break
   }
   case 'files': {
-
-
-
-
-
     const map = loadMap()
     const by = String(flags.by || 'size')
     if (!['size', 'syms', 'cx', 'dupes'].includes(by)) {
       console.error(`✗ 未知 --by=${by}（可选 size | syms | cx | dupes）`)
       process.exit(2)
     }
-
-
     if (by === 'dupes') {
       const groups = new Map()
       map.files.forEach((f) => {
@@ -1050,7 +875,6 @@ switch (cmd) {
     break
   }
   case 'hubs': {
-
     const map = loadMap()
     const { model, cfg } = hubModelOf(map)
     const rows = model.ranking(numFlag(flags.top, 25, 'top'))
@@ -1063,7 +887,6 @@ switch (cmd) {
       + ` ambGroups="${groups.length}" note="泛用名降权不删除；局部变量与第三方路径不进候选">`)
     rows.forEach((r, n) => {
       const ambTag = r.amb > 1 ? ` amb="${r.amb}"` : ''
-
       const qTag = r.s.q ? ` q="${esc(r.s.q)}"` : ''
       const factors = explain
         ? `<factors norm="${r.norm.toFixed(3)}" kind="${r.k}" path="${r.pw}" name="${r.nw}" span="${r.sw}" breadth="${r.bw}" callers="${r.callers}" callerFiles="${r.callerFiles}" tags="${esc(r.tags.join('|'))}"/>`
@@ -1074,11 +897,6 @@ switch (cmd) {
     break
   }
   case 'impls': {
-
-
-
-
-
     const map = loadMap()
     const name = positional[0]
     if (!name) { console.error('用法：repoctx impls <TRAIT|TYPE>   # trait → 它的实现；类型 → 它实现的 trait'); process.exit(2) }
@@ -1095,7 +913,6 @@ switch (cmd) {
     for (const { s, i } of fwd) console.log('  ' + symLine(map, i, ` for="${esc(s.n)}"`))
     for (const { s, i } of rev) console.log('  ' + symLine(map, i, s.tr ? ` implements="${esc(s.tr)}"` : ' inherent="1"'))
     if (isTrait) {
-
       const disp = dispatchOf(map)
       for (let i = 0; i < syms.length; i++) {
         const s = syms[i]
@@ -1107,11 +924,6 @@ switch (cmd) {
     break
   }
   case 'typerefs': {
-
-
-
-
-
     const map = loadMap()
     const name = positional[0]
     if (!name) { console.error('用法：repoctx typerefs <TYPE|SYMBOL>   # 类型 → 谁引用了它；符号 → 它引用了哪些类型'); process.exit(2) }
@@ -1142,10 +954,6 @@ switch (cmd) {
     break
   }
   case 'imports': {
-
-
-
-
     const map = loadMap()
     const name = positional[0]
     if (!name) { console.error('用法：repoctx imports <NAME>   # 哪些文件导入了这个符号（依赖面）'); process.exit(2) }
@@ -1161,12 +969,6 @@ switch (cmd) {
     break
   }
   case 'policy': {
-
-
-
-
-
-
     const map = loadMap()
     const policyPath = flags.policy ? path.resolve(String(flags.policy)) : path.join(REPO, '.repoctx', 'policy.yaml')
     if (!fs.existsSync(policyPath)) {
@@ -1190,7 +992,6 @@ switch (cmd) {
     const result = runPolicyCheck(map, policy, baseline)
 
     if (flags['baseline-update']) {
-
       fs.mkdirSync(OUT_DIR, { recursive: true })
       fs.writeFileSync(baselinePath, JSON.stringify({ version: 1, violations: result.violations }, null, 2) + '\n', 'utf8')
       console.log(`✓ baseline 已更新：${result.violations.length} 条违规入账（${posix(path.relative(REPO, baselinePath))}，入库供评审 diff）`)
@@ -1219,9 +1020,6 @@ switch (cmd) {
     process.exit(result.newViolations.length > 0 ? 1 : 0)
   }
   case 'amb': {
-
-
-
     const map = loadMap()
     const { all: groups, code: codeGroups, hidden } = codeAmbGroups(map)
     const target = positional[0]
@@ -1231,9 +1029,6 @@ switch (cmd) {
         console.error(`✗ 「${target}」不是歧义名（同名定义不足 2 处）。用 repoctx amb 看全部歧义组。`)
         process.exit(3)
       }
-
-
-
       const implN = g.idxs.filter((i) => map.symbols[i].t === 'impl').length
       const implAttr = implN ? ` impls="${implN}"` : ''
       const implNote = implN
@@ -1247,8 +1042,6 @@ switch (cmd) {
           ? `；注意：该组 ${docN} 个定义**全部来自文档段落**（md 标题），属文档撞名、不是代码歧义`
           : `；其中 ${docN} 个定义来自文档段落（md 标题，t=sec）`
       console.log(`<amb n="${esc(g.name)}" defs="${g.idxs.length}"${implAttr}${docAttr} refs="${g.refs}" note="${esc(`同名多处定义 → 引用不连边（宁缺毋滥）；以下为全部候选${implNote}${docNote}`)}">`)
-
-
       const inDeg = new Map()
       for (const e of callEdges(map)) inDeg.set(e.to, (inDeg.get(e.to) || 0) + 1)
       const ordered = [...g.idxs].sort((a, b) =>
@@ -1276,26 +1069,15 @@ switch (cmd) {
     break
   }
   case 'pipeline': {
-
-
-
-
-
     const t = () => Number(process.hrtime.bigint() / 1000000n)
     const t0 = t()
-
 
     const { files, symbols, aliases, importsOf } = buildIndex()
     const t1 = t()
 
-
-
-
-
     const { edges, typeEdges, ambiguous, ambRefs, ambTypes, localOnly } = buildEdges(symbols, aliases)
     const churn = churnMap()
     const t2 = t()
-
 
     const cfg = loadHubConfig(OUT_DIR)
     const model = createHubModel({ symbols, edges, config: cfg })
@@ -1303,17 +1085,15 @@ switch (cmd) {
     const { max } = hubNormTable(scored, symbols.length)
     const t3 = t()
 
-
     const groups = model.ambGroups(ambRefs)
     const collapsed = model.collapse(scored)
     const t4 = t()
-
 
     const notes = readNotes()
     const t5 = t()
 
     console.log(`<pipeline schema="${SCHEMA}" note="五阶段；不落中间缓存（map.json 为唯一权威源，--out 可导出派生视图）">`)
-    console.log(`  <phase n="1" name="抽取骨架" mode="${ast.available ? 'AST/tree-sitter' : '行级（AST 未启用）'}" files="${files.length}" symbols="${symbols.length}" ms="${t1 - t0}"/>`)
+    console.log(`  <phase n="1" name="抽取骨架" mode="${ast.available ? 'AST/tree-sitter' : '行级（AST 未启用）'}" files="${files.length}" symbols="${symbols.length}" skip="${esc(SKIP_DIRS.join(',')) || '-'}" ms="${t1 - t0}"/>`)
     console.log(`  <phase n="2" name="名字级调用图" edges="${edges.length}" typeEdges="${typeEdges.length}" ambiguous="${ambiguous}" ambTypes="${ambTypes}" churnFiles="${Object.keys(churn).length}" ms="${t2 - t1}"/>`)
     console.log(`  <phase n="3" name="分层漏斗打分" scored="${scored.length}" maxScore="${max.toFixed(1)}" ms="${t3 - t2}"/>`)
     console.log(`  <phase n="4" name="歧义聚合+组内择优" groups="${groups.length}" defs="${groups.reduce((n, g) => n + g.idxs.length, 0)}" representatives="${collapsed.length}" ms="${t4 - t3}"/>`)

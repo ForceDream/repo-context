@@ -1,23 +1,10 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHubModel, hubNormTable, loadHubConfig } from './repoctx-hub.mjs'
 
 
 export const SCHEMA = 'repoctx/2'
-
 
 
 export const esc = (s) => String(s)
@@ -108,14 +95,10 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   }
 
   let _rank = null
-  
+
   function callEdges(map) {
     return INCLUDE_DOCS ? map.edges : map.edges.filter((e) => e.prov !== 'doc')
   }
-  
-
-
-
 
   const mapKey = (map) => `${map.symbols.length}|${map.edges.length}|${(map.typeEdges || []).length}|${Object.keys(map.ambRefs || {}).length}|docs=${INCLUDE_DOCS ? 1 : 0}`
 
@@ -128,10 +111,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   }
 
   let _adjs = null
-  
-
-
-
 
   function adjacencyOf(map) {
     const k = mapKey(map)
@@ -152,11 +131,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   function calleesOf(map, idx) { return adjacencyOf(map).out.get(idx) || [] }
 
   let _hub = null
-  
-
-
-
-
 
   function hubModelOf(map) {
     const cfg = loadHubConfig(OUT_DIR)
@@ -171,33 +145,22 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     }
     return _hub
   }
-  
+
   function ambGroupsOf(map) { return hubModelOf(map).model.ambGroups(map.ambRefs || {}) }
-
-  
-
-
-
-
-
-
 
 
   const isDocSymbol = (s) => !!s && (s.t === 'sec' || s.t === 'doc')
-  
+
   function docCountOf(map, g) { return g.idxs.reduce((n, i) => n + (isDocSymbol(map.symbols[i]) ? 1 : 0), 0) }
-  
+
   const isDocOnlyGroup = (map, g) => g.idxs.length > 0 && docCountOf(map, g) === g.idxs.length
-  
-
-
 
   function codeAmbGroups(map) {
     const all = ambGroupsOf(map)
     const code = all.filter((g) => !isDocOnlyGroup(map, g))
     return { all, code, hidden: all.length - code.length }
   }
-  
+
   function collapseRows(map, rows) {
     const best = new Map()
     for (const r of rows) {
@@ -208,7 +171,7 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   }
 
 
-  
+
   function impactDetail(map, idx, depth, { types = false } = {}) {
     const incoming = new Map()
     const add = (e, fam) => {
@@ -238,7 +201,7 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     const viaType = new Set([...via].filter(([, f]) => f === 'type').map(([n]) => n))
     return { list, viaType }
   }
-  
+
   const impact = (map, idx, depth, opts) => impactDetail(map, idx, depth, opts).list
 
   function resolveSymbol(map, name) {
@@ -272,17 +235,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     return `<s t="${s.t}" n="${esc(s.n)}"${q} p="${esc(s.p)}" l="${s.l}" cx="${s.cx}"${cxOwn} in="${inDegree(map, i)}" rank="${rank.toFixed(4)}"${extra}>${esc(s.sig)}</s>`
   }
 
-  
-
-
-
-
-
-
-
-
-
-
 
   function confNote(map, i, n) {
     const model = hubModelOf(map).model
@@ -298,12 +250,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     }
     return ''
   }
-
-  
-
-
-
-
 
 
   function estTokens(text) {

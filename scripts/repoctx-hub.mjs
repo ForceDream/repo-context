@@ -1,21 +1,5 @@
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -52,12 +36,6 @@ export const KIND_WEIGHT = {
 export const DEFAULT_CONFIG = { whitelist: [], genericDamp: 0.15, testDamp: 0.5, vendorDamp: 0.2 }
 
 
-
-
-
-
-
-
 export function loadHubConfig(outDir) {
   const file = path.join(outDir, 'config.json')
   if (!fs.existsSync(file)) return { ...DEFAULT_CONFIG, source: null }
@@ -79,12 +57,6 @@ export function loadHubConfig(outDir) {
 
 export const isVendorPath = (p) => VENDOR_PATH.test(p)
 export const isTestPath = (p) => TEST_PATH.test(p)
-
-
-
-
-
-
 
 
 export function stripNoise(text, lang) {
@@ -110,11 +82,6 @@ export function stripNoise(text, lang) {
 }
 
 
-
-
-
-
-
 export function createHubModel({ symbols, edges, config }) {
   const sameName = new Map()
   for (const s of symbols) sameName.set(s.n, (sameName.get(s.n) || 0) + 1)
@@ -127,7 +94,7 @@ export function createHubModel({ symbols, edges, config }) {
 
   const whitelist = new Set(config.whitelist || [])
 
-  
+
   function score(i) {
     const s = symbols[i]
     if (!s) return null
@@ -173,7 +140,7 @@ export function createHubModel({ symbols, edges, config }) {
     }
   }
 
-  
+
   function ranking(limit = Infinity) {
     const rows = []
     for (let i = 0; i < symbols.length; i++) {
@@ -184,7 +151,7 @@ export function createHubModel({ symbols, edges, config }) {
     return rows.slice(0, limit)
   }
 
-  
+
   function ambGroups(ambRefs = {}) {
     const byName = new Map()
     symbols.forEach((s, i) => {
@@ -203,9 +170,6 @@ export function createHubModel({ symbols, edges, config }) {
     return out
   }
 
-  
-
-
 
   function collapse(rows) {
     const best = new Map()
@@ -219,13 +183,6 @@ export function createHubModel({ symbols, edges, config }) {
 
   return { score, ranking, ambGroups, collapse, sameNameCount: (n) => sameName.get(n) || 0 }
 }
-
-
-
-
-
-
-
 
 
 export function hubNormTable(rows, n) {

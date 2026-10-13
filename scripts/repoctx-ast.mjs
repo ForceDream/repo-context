@@ -2,16 +2,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
 import { LANG_DECLS as DECLS, isDeclLike } from './repoctx-decls.mjs'
 
 
@@ -78,13 +68,8 @@ export async function createAstExtractor({ wasmDir }) {
 
   const MAX_PARSE_BYTES = 1024 * 1024
 
-  
 
   const SIMPLE_NAME = /^[A-Za-z_$][\w$]*$/
-  
-
-
-
 
   const LOCAL_DECL_TYPES = new Set(['type_parameter', 'constrained_type_parameter', 'type_binding'])
 
@@ -126,18 +111,9 @@ export async function createAstExtractor({ wasmDir }) {
     return decisions + 1
   }
 
-  
 
 
 
-
-
-
-
-
-
-
-  
   function extract(relPath, lang, text) {
     const language = langs[lang]
     if (!language) return null
@@ -149,7 +125,7 @@ export async function createAstExtractor({ wasmDir }) {
 
     const out = []
     const root = tree.rootNode
-    
+
     const CONTAINERS = {
       rust: { impl_item: 'impl', trait_item: 'trait', struct_item: 'struct', enum_item: 'enum', mod_item: 'mod', function_item: 'fn' },
       ts: {
@@ -160,12 +136,6 @@ export async function createAstExtractor({ wasmDir }) {
       js: { class_declaration: 'class', function_declaration: 'fn', method_definition: 'method', lexical_declaration: 'var' },
       py: { class_definition: 'class', function_definition: 'fn' },
     }
-    
-
-
-
-
-
 
     function qualifiedName(node, name) {
       const cmap = CONTAINERS[lang === 'tsx' ? 'ts' : lang] || {}
@@ -187,7 +157,7 @@ export async function createAstExtractor({ wasmDir }) {
 
 
 
-    
+
     const FIELD_DECL_NODES = ['variable_declarator', 'let_declaration', 'required_parameter',
       'optional_parameter', 'typed_parameter', 'default_parameter', 'assignment_pattern']
     const PARAM_LIST_NODES = ['formal_parameters', 'parameters']
@@ -245,14 +215,6 @@ export async function createAstExtractor({ wasmDir }) {
       scopedCalls.sort((a, b) => a.s - b.s)
     }
 
-    
-
-
-
-
-
-
-
 
     const importAliases = new Map()
     const importNames = new Set()
@@ -264,7 +226,7 @@ export async function createAstExtractor({ wasmDir }) {
       if (o && l && l !== o) importAliases.set(l, o)
     }
     const lastSeg = (p) => p.text.split('::').pop()
-    
+
     const rustUseArg = (arg) => {
       if (!arg) return
       switch (arg.type) {
@@ -421,16 +383,6 @@ export async function createAstExtractor({ wasmDir }) {
     tree.delete?.()
     return dedup
   }
-
-  
-
-
-
-
-
-
-
-
 
 
   function nodeTypeCensus(relPath, lang, text) {

@@ -1,19 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import fs from 'node:fs'
 import path from 'node:path'
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads'
@@ -23,7 +8,6 @@ import { createAstExtractor } from './repoctx-ast.mjs'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 async function extractChunk(repo, items, wasmDir, dbg) {
-
   const t0 = Date.now()
   const ast = await createAstExtractor({ wasmDir })
   const t1 = Date.now()
@@ -39,8 +23,6 @@ async function extractChunk(repo, items, wasmDir, dbg) {
     a = Date.now()
     try {
       const syms = ast.extract(it.rel, it.lang, text)
-
-
       out[it.rel] = syms && {
         syms,
         imports: syms.imports
@@ -59,12 +41,11 @@ async function main() {
   const get = (k) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : null }
   const repo = get('repo')
   const wasmDir = get('wasm')
+
+  const rawFiles = get('files') === '-' ? fs.readFileSync(0, 'utf8') : (get('files') || '[]')
   let files = []
-  try { files = JSON.parse(get('files') || '[]') } catch { }
+  try { files = JSON.parse(rawFiles) } catch { }
   const cpus = (await import('node:os')).cpus?.length || 4
-
-
-
   const workers = Math.max(1, Math.min(files.length, Number(get('workers') || Math.min(4, cpus - 1))))
   const chunks = Array.from({ length: workers }, () => [])
   files.forEach((f, i) => chunks[i % workers].push(f))
@@ -85,7 +66,6 @@ async function main() {
 }
 
 if (!isMainThread) {
-
   extractChunk(workerData.repo, workerData.items, workerData.wasmDir, workerData.dbg)
     .then((out) => parentPort.postMessage(out))
     .catch(() => parentPort.postMessage(null))

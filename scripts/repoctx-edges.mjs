@@ -1,46 +1,13 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import path from 'node:path'
 import { isVendorPath, stripNoise } from './repoctx-hub.mjs'
 import { LANG_BY_EXT } from './repoctx-files.mjs'
 
 
-
-
-
-
-
 export const langFamily = (p) => (p.endsWith('.rs') ? 'rs' : (/\.(ts|tsx|js|jsx|mjs)$/.test(p) ? 'ts' : 'other'))
 
 
-
-
-
-
-
-
-
-
 export const MEMBER_KINDS = new Set(['field', 'prop', 'variant'])
-
-
-
-
-
-
 
 
 export function aliasScan(text, lang) {
@@ -64,16 +31,6 @@ export function aliasScan(text, lang) {
   }
   return out
 }
-
-
-
-
-
-
-
-
-
-
 
 
 export function reexportScan(text, lang) {
@@ -276,18 +233,6 @@ export function buildEdges(symbols, aliases) {
 
 
 
-  
-
-
-
-
-
-
-
-
-
-
-
 
   const TYPE_KINDS = new Set(['struct', 'enum', 'trait', 'type', 'iface', 'class'])
   const typeEdges = []
@@ -315,16 +260,6 @@ export function buildEdges(symbols, aliases) {
 }
 
 let _disp = null
-
-
-
-
-
-
-
-
-
-
 
 export function dispatchOf(map) {
   if (_disp && _disp.key === map.symbols.length) return _disp.t

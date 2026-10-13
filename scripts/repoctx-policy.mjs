@@ -1,29 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { createHash } from 'node:crypto'
 import { isVendorPath } from './repoctx-hub.mjs'
 import { MEMBER_KINDS } from './repoctx-edges.mjs'
@@ -45,16 +20,6 @@ function parseVal(v) {
   if (/^-?\d+$/.test(t)) return Number(t)
   return t.replace(/^['"]|['"]$/g, '')
 }
-
-
-
-
-
-
-
-
-
-
 
 
 export function parsePolicy(text) {
@@ -142,12 +107,6 @@ function modOfPathFn(policy) {
     return null
   }
 }
-
-
-
-
-
-
 
 
 export function runPolicyCheck(map, policy, baseline = { version: 1, violations: [] }) {

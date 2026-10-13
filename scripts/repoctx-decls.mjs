@@ -1,30 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
@@ -70,9 +44,6 @@ export const LANG_DECLS = {
 
 
 export const KIND_UNIVERSE = new Set(['fn', 'method', 'class', 'iface', 'struct', 'enum', 'trait', 'type', 'mod', 'var', 'const', 'macro', 'impl', 'field', 'variant', 'prop', 'sec'])
-
-
-
 
 
 export const DECL_FORMS = {
@@ -138,13 +109,6 @@ export function formsOf(lang) {
 }
 
 
-
-
-
-
-
-
-
 const DECL_SUFFIX = new Set([
   'declaration', 'declarator', 'definition', 'item', 'signature', 'annotation',
   'variant', 'field', 'parameter', 'binding',
@@ -156,9 +120,6 @@ export const isDeclLike = (type) => {
   const segs = type.split('_')
   return DECL_SUFFIX.has(segs[segs.length - 1])
 }
-
-
-
 
 
 export function classifyCounts(lang, counts) {
@@ -173,9 +134,6 @@ export function classifyCounts(lang, counts) {
   for (const k of Object.keys(out)) out[k].sort((a, b) => b.count - a.count)
   return out
 }
-
-
-
 
 
 export function selfCheck() {
