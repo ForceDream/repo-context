@@ -93,18 +93,13 @@ Windows 若看到随附的 `repoctx.cmd`，可直接调用（自动定位 node�
 
 **不装任何组件也能用全部动词**：默认行级抽取器零依赖、跨平台，`index` / `symbol` / `callers` / `impact` / `affected` / `hubs` / `files` 等全部可用。
 
-装上 AST 层会**更准**（圈复杂度按决策点计数、`q=` 限定名、类型引用与导入绑定才有数据）。实测差距（对象：117 个 `.rs` 的 Rust 项目）：
-
-| | 行级（默认） | AST（可选，装了之后） |
-|---|---|---|
-| 抽取符号数 | 3083 | **8023** |
-| `imports` / `typerefs` | 返回空（预期） | 有数据 |
+装上 AST 层会**更准**：`imports` / `typerefs` 才有数据（行级返回空，属预期）、引用边大幅降噪（局部变量与字符串不再产生引用，边数约减半、同名歧义约减半）、圈复杂度按决策点计数、`q=` 限定名。代价是索引耗时约为行级的 3 倍。
 
 ```bash
 npm install --prefix "<SKILL_DIR>" web-tree-sitter@0.20.8 tree-sitter-wasms
 ```
 
-必须 `web-tree-sitter@0.20.8`（0.27 与 tree-sitter-wasms 的 ABI 不兼容）。**未安装时自动落回行级，不失败、不阻塞**——先跑行级，觉得需要更准再装。
+必须 `web-tree-sitter@0.20.8`（0.27 与 tree-sitter-wasms 的 ABI 不兼容）。**未安装时自动落回行级，不失败、不阻塞**；≥64 个源文件且依赖就位时自动走**并行抽取**，`index` 输出的抽取器行带 `并行×N`。
 
 **体积口径（两档不同，别混）**：单文件 **>2MB 直接跳过**——不入索引、也**不计入 `check` 的漂移检查**；AST 解析上限是 **1MB**，1–2MB 的文件自动走行级（不报错）。
 
@@ -124,8 +119,7 @@ npm install --prefix "<SKILL_DIR>" web-tree-sitter@0.20.8 tree-sitter-wasms
 三种写法：**目录名**（任意层级命中）、**相对路径前缀**（如 `apps/zcode-cli`）、**含 `*` 的路径段通配**。
 一次性试排：`--skip-dir apps,modules`（临时追加，不落配置）。
 
-效果（ZCode-main，pnpm monorepo）：默认 **3965 文件 / 21.2s**；排掉 `apps` 后 **2560 文件 / 10.1s**，同名歧义组 327703 → 157664。
-`index` 与 `pipeline` 会把生效的排除打印出来（`额外排除 apps, modules` / `skip="apps"`）——排多了当场看得见。
+排掉最大的非源码子树通常能让耗时与同名歧义近似减半；`index` 与 `pipeline` 会把生效的排除打印出来（`额外排除 apps, modules` / `skip="apps"`）——排多了当场看得见。
 
 ## 产物（一份仓库记忆体）
 
@@ -142,7 +136,7 @@ npm install --prefix "<SKILL_DIR>" web-tree-sitter@0.20.8 tree-sitter-wasms
 
 在 `.repoctx/policy.yaml`（architecture-policy 风格的最小子集）声明每个模块的 `roots` / `managed` / `requires` / `publicEntrypoints` / `owner`，`policy` 动词对索引产物做五类检查：`module-dependency`（跨模块依赖未声明）、`deep-import`（引用绕过公共入口）、`cycle`（模块环）、`unknown-module`、`missing-entrypoint`。
 
-两条与生俱来的纪律（照抄 zcode architecture-governance）：
+两条纪律：
 
 - **managed 开关**：`managed: false` 的模块只登记拓扑、不产生违规——旧代码先标注"不归管"，渐进纳管，不制造几万条存量违规。
 - **fingerprint + baseline，只拦新增**：违规身份 = `sha256(rule\0file\0detail)` 前 16 位；存量违规由 `baseline.json` 认账，只有**新增**违规才 `exit 1`。账本只能 `policy --baseline-update` 人工刷新（评审过的变更才能改账），检查器从不自动写账。
@@ -160,12 +154,11 @@ npm install --prefix "<SKILL_DIR>" web-tree-sitter@0.20.8 tree-sitter-wasms
 ## 常见问题（FAQ）
 
 - **`imports` / `typerefs` 返回空？** → 行级模式下属**预期**，这两项只有 AST 层才有数据（见「抽取器两档」）。
-- **输出 `n="0"` 是不是没人用？** → 先看 `conf`：`conf="none"` 表示该名字有歧义、引用未连边，**不代表无人使用**；`conf="low"` 表示泛用名，可能混入同名标准库调用。
-- **`symbol` 报找不到？** → 精确名未命中会按子串模糊返回并打印提醒，回退结果**必须核对**；同名多处定义用 `amb NAME` 展开候选。
+- **输出 `n="0"`、`symbol` 报找不到？** → 见「诚实性约定」：先看 `conf`；模糊返回**必须核对**；同名多处定义用 `amb NAME` 展开。
 - **大仓库能跑吗？多久？** → `index` 为秒级；>2MB 的单文件会被跳过，且不计入漂移检查。
 - **`check` 报漂移？** → 重跑 `index` 重建，**不要手改 `map.json`**（它不入库、可随时重建）。
 - **中文能查吗？** → 符号名可以；但 `for` 的任务文本请用英文或符号名（排序靠子词匹配，中文无分词）。
-- **`cx` 和 `cxOwn` 怎么区分？** → `cx` 是符号 span 内的分支数（含嵌套定义，容器符号会偏高）；判单个函数复杂度看 `cxOwn`。
+- **`cx` 和 `cxOwn` 怎么区分？** → 见「诚实性约定」；判单个函数复杂度看 `cxOwn`。
 - **只想看"哪些文件最大 / 最复杂"？** → `files --by size|syms|cx|dupes`。
 - **`notes`（仓库经验）放哪、要不要入库？** → `.repoctx/notes.jsonl`，**要入库**（人写内容不可重建）；`map.json` 则不入库。
 - **`check` 为什么会因 git 失败退出？** → 本地落后自己的上游、或（无本地提交时）落后主分支超阈值（默认 50，`--max-behind` 调整）：在旧基线上的索引与结论不可信，先 `merge --ff-only`。本检查不联网，需要最新远端先手动 `git fetch origin --prune`；`--no-freshness` 可关。

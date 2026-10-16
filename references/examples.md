@@ -20,7 +20,7 @@ node "<SKILL_DIR>\scripts\repoctx.mjs" index --repo "$env:TEMP\demo"
 
 第一行打印的是仓库目录**相对当前 shell 目录**的路径，不是仓库本身的位置。
 
-`AST 未启用` 是**正常回退提示**，不是错误：行级抽取器功能完整、精度略低。要启用见 SKILL.md「抽取器两档」。
+`AST 未启用` 是**正常回退提示**，不是错误：行级抽取器功能完整、精度略低。装上 AST 依赖后该行变为 `抽取器：AST/tree-sitter（…）`（大仓还会带 `并行×N`）。要启用见 SKILL.md「抽取器两档」。
 
 ## 2. `for "order discount checkout" --top 6` —— 任务相关符号
 
