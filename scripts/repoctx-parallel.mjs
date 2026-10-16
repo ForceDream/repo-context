@@ -44,7 +44,7 @@ async function main() {
 
   const rawFiles = get('files') === '-' ? fs.readFileSync(0, 'utf8') : (get('files') || '[]')
   let files = []
-  try { files = JSON.parse(rawFiles) } catch { }
+  try { files = JSON.parse(String(rawFiles).replace(/^\uFEFF/, '')) } catch { }
   const cpus = (await import('node:os')).cpus?.length || 4
   const workers = Math.max(1, Math.min(files.length, Number(get('workers') || Math.min(4, cpus - 1))))
   const chunks = Array.from({ length: workers }, () => [])

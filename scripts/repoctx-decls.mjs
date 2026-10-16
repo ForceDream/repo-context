@@ -1,6 +1,4 @@
 
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
 
 
 export const LANG_DECLS = {
@@ -160,13 +158,6 @@ export function selfCheck() {
 }
 
 
-export function sumCounts(list) {
-  const total = new Map()
-  for (const m of list) for (const [t, c] of m) total.set(t, (total.get(t) || 0) + c)
-  return total
-}
-
-
 export function mergeClassified(perLang) {
   const out = {}
   for (const [lang, cls] of Object.entries(perLang)) {
@@ -179,12 +170,4 @@ export function mergeClassified(perLang) {
     }
   }
   return Object.values(out).sort((a, b) => b.count - a.count)
-}
-
-
-export function loadLocalForms(repo) {
-  try {
-    const p = path.join(repo, '.repoctx', 'decls.json')
-    return JSON.parse(readFileSync(p, 'utf8'))
-  } catch { return null }
 }

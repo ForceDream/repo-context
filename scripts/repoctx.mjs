@@ -177,10 +177,13 @@ function buildIndex() {
   let parallel = null
   if (ast.available && rels.length >= 64 && process.env.REPOCTX_PARALLEL !== '0') {
 
+
+
     const raw = run(process.execPath, [
       path.join(SKILL_DIR, 'scripts', 'repoctx-parallel.mjs'), '--repo', REPO, '--wasm', WASM_DIR,
       '--files', '-',
     ], {
+      stdio: ['pipe', 'pipe', 'pipe'],
       input: JSON.stringify(rels.map((rel) => ({ rel, lang: LANG_BY_EXT[path.extname(rel).toLowerCase()] }))),
     })
     if (raw) {
@@ -353,7 +356,7 @@ switch (cmd) {
     }
     console.log(`  产物 ${posix(path.relative(REPO, MAP_FILE))}（${Math.round(fs.statSync(MAP_FILE).size / 1024)} KB，不含时间戳→可做 0 漂移校验）`)
     console.log(ast.available
-      ? `  抽取器：AST/tree-sitter（${ast.langs.join(' ')}）`
+      ? `  抽取器：AST/tree-sitter（${ast.langs.join(' ')}）${ast.parallelMode ? ' ' + ast.parallelMode : ''}`
       : `  抽取器：行级（AST 未启用，原因：${ast.reason}）`)
     break
   }
