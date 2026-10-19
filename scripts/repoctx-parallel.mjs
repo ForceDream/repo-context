@@ -41,7 +41,6 @@ async function main() {
   const get = (k) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : null }
   const repo = get('repo')
   const wasmDir = get('wasm')
-
   const rawFiles = get('files') === '-' ? fs.readFileSync(0, 'utf8') : (get('files') || '[]')
   let files = []
   try { files = JSON.parse(String(rawFiles).replace(/^\uFEFF/, '')) } catch { }

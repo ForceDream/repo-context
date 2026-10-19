@@ -50,7 +50,6 @@ export function parsePolicy(text) {
       if (kv) out.global[kv[1]] = parseVal(kv[2])
     }
   }
-
   for (const m of out.modules) {
     m.id = String(m.id ?? '').trim()
     m.roots = (Array.isArray(m.roots) ? m.roots : m.roots ? [m.roots] : []).map(normPath).filter(Boolean)
@@ -116,7 +115,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
   const V = (rule, file, detail, module) =>
     violations.push({ rule, file, detail, module: module || null, fp: fingerprint(rule, file, detail) })
 
-
   for (const m of policy.modules) {
     for (const dep of m.requires) {
       if (!byId.has(dep)) V('unknown-module', m.roots[0] || m.id, `模块 ${m.id} 的 requires 声明了未注册模块「${dep}」`, m.id)
@@ -128,7 +126,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
     }
   }
 
-
   const syms = map.symbols
   const depCount = new Map()
   const addDep = (fromP, toSym) => {
@@ -138,7 +135,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
     const k = `${A.id}>${B.id}`
     const rec = depCount.get(k) || { n: 0, sample: fromP, deep: 0, deepSample: null }
     rec.n++
-
     if (B.managed && B.publicEntrypoints.length && !B.publicEntrypoints.includes(toSym.p)) {
       rec.deep++
       rec.deepSample = rec.deepSample || toSym.p
@@ -152,7 +148,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
     if (!modOfPath(fromP) || !modOfPath(syms[e.to].p)) { unmappedEdges++; continue }
     addDep(fromP, syms[e.to])
   }
-
   const byName = new Map()
   syms.forEach((s, i) => {
     if (s.t === 'impl' || MEMBER_KINDS.has(s.t)) return
@@ -168,7 +163,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
     }
   }
 
-
   for (const [k, rec] of depCount) {
     const [a, b] = k.split('>')
     const A = byId.get(a)
@@ -182,7 +176,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
       V('deep-import', rec.sample, `${a} → ${b}：${rec.deep} 处引用落在 ${b} 的入口文件之外（如 ${rec.deepSample}）；入口 = ${B.publicEntrypoints.join(', ')}`, b)
     }
   }
-
 
   if (policy.global.forbidCycles) {
     const adj = new Map()
@@ -215,7 +208,6 @@ export function runPolicyCheck(map, policy, baseline = { version: 1, violations:
     }
     for (const node of adj.keys()) if (!state.get(node)) visit(node)
   }
-
 
   const accounted = new Set((baseline.violations || []).map((v) => v.fp))
   const newViolations = []

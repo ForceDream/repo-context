@@ -1,7 +1,6 @@
 @echo off
 
 
-
 setlocal
 set "NODE=node"
 where node >nul 2>nul && goto :run

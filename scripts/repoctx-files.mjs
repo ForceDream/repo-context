@@ -98,7 +98,6 @@ export function listSourceFiles(repo, { gitBin = resolveGit(), extraSkip = [] } 
       const list = (args) => execFileSync(gitBin, args, {
         cwd: repo, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
       }).split('\0').filter(Boolean).map(posix)
-
       const tracked = list(['ls-files', '-z'])
       const untracked = list(['ls-files', '--others', '--exclude-standard', '-z'])
       return [...tracked, ...untracked].filter((f) => !skip(f))

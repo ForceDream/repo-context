@@ -49,7 +49,7 @@
 - 修复文档内表述不准确和内容模糊的内容。
 - 「抽取器两档」补明体积口径：单文件 >2MB 直接跳过且**不计入 `check` 的漂移检查**；AST 解析上限是 1MB，1–2MB 自动走行级（此前只笼统提"2MB 限制"，两档混在一起）。
 
-## [1.1.0] - 2026-09-22 · 功能版（借鉴 zcode 治理机制）
+## [1.1.0] - 2026-09-22 · 功能版
 
 ### 新功能
 
@@ -66,14 +66,7 @@
 - `map.json` 新增 `reexports` 字段（文件 → `[{name, as}]`）；`SCHEMA` 仍为 `repoctx/2`（旧产物缺该字段时 re-export 披露静默缺席，重跑 `index` 即得）。
 - 新增入库产物：`.repoctx/policy.yaml`（人写）、`.repoctx/baseline.json`（`--baseline-update` 生成）。
 
-### 实测
-
-- 临时测试仓（barrel + deep-import + 模块环）：`policy` 精确命中 2 类违规 → baseline 后 new=0；`callers`/`context`/`notes --drift`/`for` 提示全部按预期输出。
-- baozi server（180 文件 / 2626 符号）：`check` git 新鲜度（落后 0 · 领先 21）；`callers run_agent_loop` 命中真实 barrel；`unmappedEdges` 披露正确触发 roots 检查警告。
-
 ## [1.0.1] - 2026-09-20 · 缺陷修复
-
-缺陷修复版：修掉 6 个实测确认的逻辑错误 + 2 处文档不一致，未新增功能。
 
 ### 逻辑错误修复
 
@@ -91,7 +84,7 @@
 - `README.md`：工具链要求「Node ≥ 20」→「≥ 18」，与 `engines` 对齐。
 - `references/examples.md`：`✓ 已索引 .` 实测打印的是相对 cwd 的路径 → 修正说明。
 
-### 文档改进（已入库，随下次发版生效）
+### 文档改进
 
 - `SKILL.md` 顶部新增「什么时候用我（触发词）」与最短上手两条命令。
 - 新增「常见问题（FAQ）」：`imports` / `typerefs` 为何返回空、`n="0"` 与 `conf` 的关系、`symbol` 找不到怎么办、大仓库与 2MB 限制、`check` 报漂移、中文查询、`cx` vs `cxOwn` 等。

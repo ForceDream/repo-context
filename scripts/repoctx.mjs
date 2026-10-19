@@ -176,9 +176,6 @@ function buildIndex() {
   const rels = listFiles().filter((rel) => INDEXED_EXT.has(path.extname(rel).toLowerCase()))
   let parallel = null
   if (ast.available && rels.length >= 64 && process.env.REPOCTX_PARALLEL !== '0') {
-
-
-
     const raw = run(process.execPath, [
       path.join(SKILL_DIR, 'scripts', 'repoctx-parallel.mjs'), '--repo', REPO, '--wasm', WASM_DIR,
       '--files', '-',

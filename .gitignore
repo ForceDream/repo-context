@@ -4,10 +4,10 @@ npm-debug.log*
 package-lock.json.bak
 
 # repo-context 索引产物
-# map.json 是机器事实、可随时重建 → 不入库
+# map.json 是机器事实、可随时重建 → 不入库（含 assets/demo/.repoctx 等嵌套位置）
 # notes.jsonl / MAP.md / config.json 是人写内容 → 应当入库（见 SKILL.md「产物」）
-.repoctx/map.json
-.repoctx/*.tmp
+**/.repoctx/map.json
+**/.repoctx/*.tmp
 
 # 编辑器 / 系统
 .DS_Store

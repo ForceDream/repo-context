@@ -1,4 +1,3 @@
-
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHubModel, hubNormTable, loadHubConfig } from './repoctx-hub.mjs'
@@ -6,13 +5,11 @@ import { createHubModel, hubNormTable, loadHubConfig } from './repoctx-hub.mjs'
 
 export const SCHEMA = 'repoctx/2'
 
-
 export const esc = (s) => String(s)
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
-
 
 export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   const REPO = repo
@@ -41,7 +38,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   }
 
 
-
   function tokenize(text) {
     return (text.toLowerCase().match(/[\p{L}\p{N}_$]{2,}/gu) || [])
   }
@@ -52,17 +48,12 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
       process.exit(2)
     }
     const m = JSON.parse(fs.readFileSync(MAP_FILE, 'utf8'))
-
     if (m.schema !== SCHEMA) {
       console.error(`✗ 产物版本不符（磁盘 ${m.schema || '无'} ≠ 当前 ${SCHEMA}）：请重跑  node repoctx.mjs index --repo "${REPO}"`)
       process.exit(2)
     }
     return m
   }
-
-
-
-
 
   function readNotes() {
     if (!fs.existsSync(NOTES_FILE)) return []
@@ -95,12 +86,11 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   }
 
   let _rank = null
-
+  
   function callEdges(map) {
     return INCLUDE_DOCS ? map.edges : map.edges.filter((e) => e.prov !== 'doc')
   }
-
-  const mapKey = (map) => `${map.symbols.length}|${map.edges.length}|${(map.typeEdges || []).length}|${Object.keys(map.ambRefs || {}).length}|docs=${INCLUDE_DOCS ? 1 : 0}`
+    const mapKey = (map) => `${map.symbols.length}|${map.edges.length}|${(map.typeEdges || []).length}|${Object.keys(map.ambRefs || {}).length}|docs=${INCLUDE_DOCS ? 1 : 0}`
 
   function pagerankOf(map) {
     const k = mapKey(map)
@@ -111,8 +101,7 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   }
 
   let _adjs = null
-
-  function adjacencyOf(map) {
+    function adjacencyOf(map) {
     const k = mapKey(map)
     if (_adjs && _adjs.k === k) return _adjs
     const edges = callEdges(map)
@@ -131,36 +120,30 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   function calleesOf(map, idx) { return adjacencyOf(map).out.get(idx) || [] }
 
   let _hub = null
-
-  function hubModelOf(map) {
+    function hubModelOf(map) {
     const cfg = loadHubConfig(OUT_DIR)
-
     const key = `${mapKey(map)}|${cfg.source || 'default'}|${(cfg.whitelist || []).join(',')}`
     if (!_hub || _hub.key !== key) {
       const model = createHubModel({ symbols: map.symbols, edges: callEdges(map), config: cfg })
-
-
       const { norm, max } = hubNormTable(model.ranking(), map.symbols.length)
       _hub = { key, model, cfg, norm, max }
     }
     return _hub
   }
-
+  
   function ambGroupsOf(map) { return hubModelOf(map).model.ambGroups(map.ambRefs || {}) }
 
-
-  const isDocSymbol = (s) => !!s && (s.t === 'sec' || s.t === 'doc')
-
+    const isDocSymbol = (s) => !!s && (s.t === 'sec' || s.t === 'doc')
+  
   function docCountOf(map, g) { return g.idxs.reduce((n, i) => n + (isDocSymbol(map.symbols[i]) ? 1 : 0), 0) }
-
+  
   const isDocOnlyGroup = (map, g) => g.idxs.length > 0 && docCountOf(map, g) === g.idxs.length
-
-  function codeAmbGroups(map) {
+    function codeAmbGroups(map) {
     const all = ambGroupsOf(map)
     const code = all.filter((g) => !isDocOnlyGroup(map, g))
     return { all, code, hidden: all.length - code.length }
   }
-
+  
   function collapseRows(map, rows) {
     const best = new Map()
     for (const r of rows) {
@@ -169,7 +152,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     }
     return [...best.values()].map((r) => ({ ...r, ambCount: hubModelOf(map).model.sameNameCount(r.s.n) }))
   }
-
 
 
   function impactDetail(map, idx, depth, { types = false } = {}) {
@@ -201,13 +183,11 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     const viaType = new Set([...via].filter(([, f]) => f === 'type').map(([n]) => n))
     return { list, viaType }
   }
-
+  
   const impact = (map, idx, depth, opts) => impactDetail(map, idx, depth, opts).list
 
   function resolveSymbol(map, name) {
     if (name === undefined || name === null || name === '') {
-
-
       console.error('用法：repoctx <symbol|callers|callees|impact|context> <NAME> [flags]')
       process.exit(2)
     }
@@ -215,9 +195,6 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     if (!hits.length) {
       const fuzzy = map.symbols.map((s, i) => ({ s, i })).filter(({ s }) => s.n.toLowerCase().includes(name.toLowerCase()))
       if (!fuzzy.length) { console.error(`✗ 找不到符号：${name}`); process.exit(3) }
-
-
-
       console.log(`<!-- 精确名未命中：「${name}」按**子串模糊匹配**返回前 ${Math.min(fuzzy.length, 10)} 条；以下输出（含闭包）基于其中第一条，请核对 -->`)
       return fuzzy.slice(0, 10)
     }
@@ -227,16 +204,12 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
   function symLine(map, i, extra = '') {
     const s = map.symbols[i]
     const rank = pagerankOf(map)[i] || 0
-
-
     const q = s.q ? ` q="${esc(s.q)}"` : ''
-
     const cxOwn = s.cxOwn != null && s.cxOwn !== s.cx ? ` cxOwn="${s.cxOwn}"` : ''
     return `<s t="${s.t}" n="${esc(s.n)}"${q} p="${esc(s.p)}" l="${s.l}" cx="${s.cx}"${cxOwn} in="${inDegree(map, i)}" rank="${rank.toFixed(4)}"${extra}>${esc(s.sig)}</s>`
   }
 
-
-  function confNote(map, i, n) {
+    function confNote(map, i, n) {
     const model = hubModelOf(map).model
     const ambN = model.sameNameCount(map.symbols[i].n)
     if (ambN > 1) {
@@ -251,8 +224,7 @@ export function createQueryLayer({ repo, outDir, includeDocs = false }) {
     return ''
   }
 
-
-  function estTokens(text) {
+    function estTokens(text) {
     let ascii = 0, wide = 0
     for (let i = 0; i < text.length; i++) (text.charCodeAt(i) > 0x2e7f ? wide++ : ascii++)
     return Math.ceil(ascii / 4 + wide)

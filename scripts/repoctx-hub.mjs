@@ -5,10 +5,8 @@ import path from 'node:path'
 
 
 export const GENERIC_NAMES = new Set([
-
   'len', 'push', 'pop', 'is_empty', 'empty', 'kind', 'new', 'from_json', 'to_json', 'json', 'parse',
   'serialize', 'deserialize', 'get', 'set', 'add', 'remove', 'update', 'create', 'delete',
-
   'as_str', 'to_string', 'clone', 'default', 'unwrap', 'collect', 'iter', 'iter_mut', 'map', 'filter',
   'find', 'insert', 'contains', 'from', 'into', 'main', 'init', 'next', 'some', 'ok', 'err', 'format',
   'print', 'log', 'run', 'index', 'count', 'items', 'keys', 'values', 'entry', 'first', 'last',
@@ -26,9 +24,6 @@ export const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|samples?|bench|benchmar
 export const KIND_WEIGHT = {
   fn: 1, method: 1, class: 1, iface: 1, struct: 1, enum: 1, trait: 1,
   impl: 0.9, type: 0.9, macro: 0.85, const: 0.8, mod: 0.7, var: 0.4,
-
-
-
   field: 0, prop: 0, variant: 0,
   other: 0.5, sec: 0, doc: 0,
 }
@@ -50,7 +45,6 @@ export function loadHubConfig(outDir) {
       source: file,
     }
   } catch (e) {
-
     return { ...DEFAULT_CONFIG, source: file, error: e.message }
   }
 }
@@ -63,17 +57,11 @@ export function stripNoise(text, lang) {
   let t = text
   if (lang === 'py') t = t.replace(/#[^\n]*/g, ' ')
   else t = t.replace(/\/\*[\s\S]*?\*\//g, ' ')
-
   t = t.replace(/(^|[^:\w])\/\/[^\n]*/g, '$1 ')
-
-
-
   if (lang === 'ts' || lang === 'tsx' || lang === 'js' || lang === 'jsx') {
     t = t.replace(/((?:^|[=(,:;[!&|?{]|\breturn)\s*)\/(?!\s)(?:\\.|\[[^\]]*\]|[^/\\\n])+\/[gimsuy]*/g, '$1/RE/')
   }
   t = t.replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
-
-
   t = lang === 'rust'
     ? t.replace(/'(?:\\.|[^'\\\n])'/g, "''")
     : t.replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
@@ -94,7 +82,7 @@ export function createHubModel({ symbols, edges, config }) {
 
   const whitelist = new Set(config.whitelist || [])
 
-
+  
   function score(i) {
     const s = symbols[i]
     if (!s) return null
@@ -104,7 +92,6 @@ export function createHubModel({ symbols, edges, config }) {
 
     const inc = incoming.get(i) || []
     if (!inc.length) return null
-
 
     let win = 0
     const callerFiles = new Set()
@@ -140,7 +127,7 @@ export function createHubModel({ symbols, edges, config }) {
     }
   }
 
-
+  
   function ranking(limit = Infinity) {
     const rows = []
     for (let i = 0; i < symbols.length; i++) {
@@ -151,7 +138,7 @@ export function createHubModel({ symbols, edges, config }) {
     return rows.slice(0, limit)
   }
 
-
+  
   function ambGroups(ambRefs = {}) {
     const byName = new Map()
     symbols.forEach((s, i) => {
@@ -161,8 +148,6 @@ export function createHubModel({ symbols, edges, config }) {
     const out = []
     for (const [name, idxs] of byName) {
       if (idxs.length < 2) continue
-
-
       const refs = Object.hasOwn(ambRefs, name) ? ambRefs[name] : 0
       out.push({ name, idxs, refs, vendorOnly: idxs.every((i) => isVendorPath(symbols[i].p)) })
     }
@@ -170,7 +155,7 @@ export function createHubModel({ symbols, edges, config }) {
     return out
   }
 
-
+  
   function collapse(rows) {
     const best = new Map()
     for (const r of rows) {

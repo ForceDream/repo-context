@@ -1,7 +1,5 @@
 
 
-
-
 import { LANG_DECLS as DECLS, isDeclLike } from './repoctx-decls.mjs'
 
 
@@ -29,9 +27,6 @@ export async function createAstExtractor({ wasmDir }) {
   const fs = await import('node:fs')
   const path = await import('node:path')
 
-
-
-
   let mod
   let Parser
   try {
@@ -43,8 +38,6 @@ export async function createAstExtractor({ wasmDir }) {
   }
 
   await Parser.init()
-
-
   const Language = mod.Language || Parser.Language
   if (!Language?.load) {
     return { available: false, reason: 'web-tree-sitter 未暴露 Language.load（runtime 与语法 ABI 版本可能不匹配）' }
@@ -68,9 +61,9 @@ export async function createAstExtractor({ wasmDir }) {
 
   const MAX_PARSE_BYTES = 1024 * 1024
 
-
+  
   const SIMPLE_NAME = /^[A-Za-z_$][\w$]*$/
-
+  
   const LOCAL_DECL_TYPES = new Set(['type_parameter', 'constrained_type_parameter', 'type_binding'])
 
   function nameOf(node, kind) {
@@ -89,8 +82,6 @@ export async function createAstExtractor({ wasmDir }) {
       if (n && SIMPLE_NAME.test(n.text)) return n.text
     }
     if (LOCAL_DECL_TYPES.has(node.type)) {
-
-
       for (const f of ['name', 'left']) {
         const x = node.childForFieldName?.(f)
         if (x && SIMPLE_NAME.test(x.text)) return x.text
@@ -111,9 +102,7 @@ export async function createAstExtractor({ wasmDir }) {
     return decisions + 1
   }
 
-
-
-
+  
   function extract(relPath, lang, text) {
     const language = langs[lang]
     if (!language) return null
@@ -125,7 +114,7 @@ export async function createAstExtractor({ wasmDir }) {
 
     const out = []
     const root = tree.rootNode
-
+    
     const CONTAINERS = {
       rust: { impl_item: 'impl', trait_item: 'trait', struct_item: 'struct', enum_item: 'enum', mod_item: 'mod', function_item: 'fn' },
       ts: {
@@ -136,12 +125,11 @@ export async function createAstExtractor({ wasmDir }) {
       js: { class_declaration: 'class', function_declaration: 'fn', method_definition: 'method', lexical_declaration: 'var' },
       py: { class_definition: 'class', function_definition: 'fn' },
     }
-
+    
     function qualifiedName(node, name) {
       const cmap = CONTAINERS[lang === 'tsx' ? 'ts' : lang] || {}
       const chain = []
       let p = node.parent
-
       for (let guard = 0; p && guard < 40; guard++, p = p.parent) {
         const k = cmap[p.type]
         if (!k) continue
@@ -151,24 +139,14 @@ export async function createAstExtractor({ wasmDir }) {
       return chain.length ? `${chain.join('::')}::${name}` : name
     }
 
-
-
-
-
-
-
-
+    
     const FIELD_DECL_NODES = ['variable_declarator', 'let_declaration', 'required_parameter',
       'optional_parameter', 'typed_parameter', 'default_parameter', 'assignment_pattern']
     const PARAM_LIST_NODES = ['formal_parameters', 'parameters']
 
-
-
-
     const WANTED_TYPES = [...new Set([
       ...IDENT_NODES, ...(BRANCH_NODES[lang] || []), 'binary_expression',
       ...FIELD_DECL_NODES, ...PARAM_LIST_NODES,
-
       'import_statement', 'use_declaration',
     ])]
     const identSet = new Set(IDENT_NODES)
@@ -183,10 +161,7 @@ export async function createAstExtractor({ wasmDir }) {
     const importNodes = []
     for (const n of (root.descendantsOfType?.(WANTED_TYPES) || [])) {
       const t = n.type
-
-
       if (identSet.has(t)) identNodes.push({ s: n.startIndex, t: n.text, ty: t })
-
       if (branchSet.has(t)) cxMarks.push({ s: n.startIndex })
       if (t === 'binary_expression' && BRANCH_OPS.has(n.childForFieldName?.('operator')?.text)) cxMarks.push({ s: n.startIndex })
       if (fieldSet.has(t)) fieldDecls.push({ s: n.startIndex, n })
@@ -194,11 +169,6 @@ export async function createAstExtractor({ wasmDir }) {
       if (t === 'import_statement' || t === 'use_declaration') importNodes.push(n)
     }
     for (const arr of [identNodes, cxMarks, fieldDecls, paramLists]) arr.sort((a, b) => a.s - b.s)
-
-
-
-
-
 
     const scopedCalls = []
     if (lang === 'rust') {
@@ -209,13 +179,12 @@ export async function createAstExtractor({ wasmDir }) {
         if (segs.length < 2) continue
         const nm = segs[segs.length - 1]
         if (!SIMPLE_NAME.test(nm)) continue
-
         scopedCalls.push({ s: fn.startIndex, path: segs.slice(0, -1).join('::'), name: nm })
       }
       scopedCalls.sort((a, b) => a.s - b.s)
     }
 
-
+    
     const importAliases = new Map()
     const importNames = new Set()
     const SKIP_PATH_SEG = new Set(['self', 'crate', 'super', 'std', 'core', 'alloc'])
@@ -226,7 +195,7 @@ export async function createAstExtractor({ wasmDir }) {
       if (o && l && l !== o) importAliases.set(l, o)
     }
     const lastSeg = (p) => p.text.split('::').pop()
-
+    
     const rustUseArg = (arg) => {
       if (!arg) return
       switch (arg.type) {
@@ -263,24 +232,19 @@ export async function createAstExtractor({ wasmDir }) {
             addBinding(nm, al || nm)
           }
         }
-
       }
     }
 
     const lowerBound = (arr, x) => { let l = 0, r = arr.length; while (l < r) { const m = (l + r) >> 1; if (arr[m].s < x) l = m + 1; else r = m } return l }
     const upperBound = (arr, x) => { let l = 0, r = arr.length; while (l < r) { const m = (l + r) >> 1; if (arr[m].s <= x) l = m + 1; else r = m } return l }
 
-
     for (const [type, kind] of DECLS[lang === 'tsx' ? 'ts' : lang] || DECLS[lang] || []) {
       for (const node of (root.descendantsOfType?.(type) || [])) {
         const name = nameOf(node, kind)
-
-
         const isLocalDecl = LOCAL_DECL_TYPES.has(node.type)
         if (!name || (name.length < 2 && !isLocalDecl)) continue
         const a = node.startIndex
         const b = node.endIndex
-
 
         const locals = new Set()
         for (let k = lowerBound(fieldDecls, a), e = upperBound(fieldDecls, b); k < e; k++) {
@@ -291,19 +255,10 @@ export async function createAstExtractor({ wasmDir }) {
             for (const id of (fld.descendantsOfType?.(IDENT_NODES) || [])) locals.add(id.text)
           }
         }
-
-
-
-
         const BINDING_NODES = ['identifier', 'shorthand_property_identifier_pattern']
         for (let k = lowerBound(paramLists, a), e = upperBound(paramLists, b); k < e; k++) {
           for (const id of (paramLists[k].n.descendantsOfType?.(BINDING_NODES) || [])) locals.add(id.text)
         }
-
-
-
-
-
 
         const refs = new Set()
         const trefs = new Set()
@@ -313,11 +268,8 @@ export async function createAstExtractor({ wasmDir }) {
           if (t === name || locals.has(t)) continue
           if (x.ty === 'type_identifier') { if (t.length >= 2) trefs.add(t); continue }
           if (t.length < 3) continue
-
           refs.add(t)
         }
-
-
 
         const qrefs = []
         const qseen = new Set()
@@ -331,16 +283,9 @@ export async function createAstExtractor({ wasmDir }) {
         }
 
         const q = qualifiedName(node, name)
-
-
-
-
-
         let exp
         if (lang === 'rust') exp = node.children.some((c) => c.type === 'visibility_modifier')
         else if (lang === 'ts' || lang === 'tsx' || lang === 'js' || lang === 'jsx') exp = /(^|\s)export\s*$/.test(text.slice(Math.max(0, a - 24), a))
-
-
 
         let tr
         if (kind === 'impl') {
@@ -368,7 +313,6 @@ export async function createAstExtractor({ wasmDir }) {
         })
       }
     }
-
     const seen = new Set()
     const dedup = out.filter((s) => {
       const key = `${s.line}|${s.name}|${s.kind}`
@@ -377,14 +321,12 @@ export async function createAstExtractor({ wasmDir }) {
       return true
     })
     dedup.sort((a, b) => a.line - b.line || a.name.localeCompare(b.name))
-
-
     dedup.imports = { aliases: importAliases, names: [...importNames].sort() }
     tree.delete?.()
     return dedup
   }
 
-
+  
   function nodeTypeCensus(relPath, lang, text) {
     const language = langs[lang]
     if (!language) return null
@@ -398,7 +340,6 @@ export async function createAstExtractor({ wasmDir }) {
     const stack = [tree.rootNode]
     while (stack.length) {
       const n = stack.pop()
-
       const named = typeof n.isNamed === 'function' ? n.isNamed() : n.isNamed !== false
       if (named) {
         counts.set(n.type, (counts.get(n.type) || 0) + 1)
